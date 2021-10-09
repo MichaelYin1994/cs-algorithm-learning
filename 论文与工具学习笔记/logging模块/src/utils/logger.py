@@ -9,10 +9,9 @@
 logging模块封装。
 
 需求：
-1. 能够在本地磁盘和命令行打印日志信息
-2. 日志信息包括：时间 - Logger的名称 - 级别 - 文件 - 行号 - 日志关键信息
-3. 能够按照API发送日志到钉钉
-
+1. 能够在本地磁盘和命令行打印日志信息。
+2. 日志信息包括：时间 - Logger的名称 - 级别 - 文件名：行号 - 日志关键信息。
+3. 能够按照API发送日志到钉钉。
 '''
 
 import json
@@ -20,9 +19,10 @@ import logging
 import urllib.request
 from datetime import datetime
 
-API_URL = 'https://oapi.dingtalk.com/robot/send?access_token=d1b2a29b2ae62bc709693c02921ed097c621bc33e5963e9e0a5d5adf5eac10c1'
+API_URL = 'https://oapi.dingtalk.com/robot/send?access_token=7f9e1d01046539141b1a1cbd378062153d3bbd9901a24b9c7f8824f125a51171'
 
 class DingTalkHandler(logging.Handler):
+    '''用于给DingTalk发送日志的Handler，用法与其他Handler一致。'''
     def __init__(self):
         super(DingTalkHandler, self).__init__()
         self.info_queue = []
@@ -36,22 +36,19 @@ class DingTalkHandler(logging.Handler):
             'Charset': 'UTF-8'
         }
 
-        # 组装为json
+        # 组装为json，并准备发送
         my_data = {
             'msgtype': 'markdown',
             'markdown': {'title': '[INFO] CURRENT FILE AT: {}'.format(datetime.now()),
                          'text': info_text},
             'at': {'isAtAll': False}
         }
-
-        # 组装为json格式
         data_send = json.dumps(my_data)
         data_send = data_send.encode('utf-8')
-        self.info_queue.append(data_send)
 
         # 无网络连接，存入队列后续再发送
         def send_data(data_to_send):
-            '''发送信息到指定API'''
+            '''发送信息到指定API_URL'''
             request = urllib.request.Request(
                 url=API_URL, data=data_to_send, headers=header
             )
@@ -83,6 +80,7 @@ def get_logger(logger_name, logger_min_level='DEBUG', **kwargs):
 
     is_print_std = kwargs.pop('is_print_std', True)
     is_send_dingtalk = kwargs.pop('is_send_dingtalk', False)
+    is_save_to_disk = kwargs.pop('is_save_to_disk', False)
     log_path = kwargs.pop('log_path', None)
 
     if logger_min_level == 'DEBUG':
@@ -104,7 +102,7 @@ def get_logger(logger_name, logger_min_level='DEBUG', **kwargs):
 
     # 日志格式
     formatter = logging.Formatter(
-        fmt='%(asctime)s | %(name)s | %(levelname)8s | %(filename)15s | %(message)s',
+        fmt='%(asctime)s | %(name)s | %(levelname)8s | %(filename)15s:%(lineno)4d | %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
 
@@ -117,7 +115,7 @@ def get_logger(logger_name, logger_min_level='DEBUG', **kwargs):
         logger.addHandler(stream_handler)
 
     # 本地文件记录器的handler配置
-    if log_path and log_path.endswith('.log'):
+    if is_save_to_disk and log_path and log_path.endswith('.log'):
         file_handler = logging.FileHandler(filename=log_path)
         file_handler.setLevel(logger_level)
         file_handler.setFormatter(formatter)

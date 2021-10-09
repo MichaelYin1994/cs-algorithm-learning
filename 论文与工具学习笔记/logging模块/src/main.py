@@ -67,16 +67,17 @@ if __name__ == '__main__':
     LOGGING_PATH = './logs/'
     LOGGING_FILENAME = '{} kpi_anomaly_detection.log'.format(get_datetime())
 
-    for log_name in os.listdir(LOGGING_PATH):
-        os.remove(
-            os.path.join(LOGGING_PATH, log_name)
-        )
+    # for log_name in os.listdir(LOGGING_PATH):
+    #     os.remove(
+    #         os.path.join(LOGGING_PATH, log_name)
+    #     )
 
     logger = get_logger(
         logger_name='kpi_anomaly_detection',
         logger_min_level='DEBUG',
         is_print_std=True,
-        is_send_dingtalk=True,
+        is_send_dingtalk=False,
+        is_save_to_disk=True,
         log_path=os.path.join(LOGGING_PATH, LOGGING_FILENAME)
     )
 
@@ -84,10 +85,9 @@ if __name__ == '__main__':
     # ******************
     kpi_df = generate_simulation_data(n_points=2000, min_interval=10)
 
-    logger.info('lalallalllalallalal')
     logger.info('KPI anomaly detection start...')
     logger.info('train shape: {}'.format(kpi_df.shape))
-    logger.info('lalallalllalallalal')
+    logger.info('Testing..........')
 
     # print('********************')
     # 打印shape
