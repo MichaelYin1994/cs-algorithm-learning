@@ -1,0 +1,405 @@
+% 设置编码，编码为UTF-8编码，字号大小12pt
+\documentclass[UTF8, 12pt]{ctexart}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{titlesec}{\tiny}
+\usepackage{amsmath}
+\usepackage{authblk}
+% 定义超链接的颜色
+\usepackage[colorlinks, linkcolor=blue, citecolor=blue]{hyperref}
+
+% 标题左对齐
+%\CTEXsetup[format={\Large\bfseries}]{section}
+
+% 定义
+\newtheorem{theorem}{Theorem}[section]
+% 控制图片的位置，让图片紧紧的跟住文字，只需写\begin{figure}[H]
+\usepackage{float}
+% 使用文献引用
+\usepackage{cite}
+% 使用算法排版模块
+\usepackage{algorithm}  
+\usepackage{algorithmic}
+\renewcommand{\algorithmicrequire}{\textbf{输入:}}  
+\renewcommand{\algorithmicensure}{\textbf{输出:}} 
+% 设置文本格式，文本间距等，具体参考如下：
+% left=2cm, right=2cm, top=2.5cm,bottom=1.5cm
+\geometry{a4paper, centering, scale=0.8}
+\newtheorem{thm}{定义}
+\renewcommand{\baselinestretch}{1.3}
+
+% 定义编程语言
+\usepackage{listings}
+\usepackage{color}
+\usepackage{fontspec}
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+\definecolor{light-gray}{gray}{0.95}
+
+\lstset{frame=tb,
+	language=Python,
+	aboveskip=3mm,
+	belowskip=1mm,
+	showstringspaces=false,
+	columns=flexible,
+	basicstyle=\small\ttfamily,
+	numbers=left,
+	numberstyle=\small\color{gray},
+	keywordstyle=\color{blue},
+	commentstyle=\color{dkgreen},
+	stringstyle=\color{mauve},
+	breaklines=true,
+	breakatwhitespace=true,
+	tabsize=4,
+	backgroundcolor=\color{light-gray}
+}
+\begin{document}
+\title{\heiti 隐马尔可夫模型简介及其应用}
+\author{\kaishu 尹卓\\ \kaishu ZhuoYin94@163.com}
+\date{\today}
+\maketitle
+
+% 增加目录
+\tableofcontents
+\newpage
+	
+\section{引言}
+	\emph{概率图模型(Probabilistic Graph Model)}是在概率模型的基础上，使用了基于图的方法来表示概率分布（或者概率密度函数），是一种通用化的不确定性知识表示和处理方法\cite{宗成庆2013统计自然语言处理}。\emph{隐马尔可夫模型(Hidden Morkov Model)}属于概率图模型的一种，描述了一个由隐藏的马尔可夫链随机生成不可观测状态的随机序列，再由各个状态生成观测产生观测随机序列的过程。隐马尔可夫模型在中文文本处理中有着一系列重要的应用，因此本文着重介绍隐马尔可夫模型的基本原理与部分算法的实现。
+
+\section{隐马尔可夫模型简介}
+	\emph{隐马尔可夫模型(Hidden Markov Model)}，是一系列状态与观测的联合概率的概率模型\cite{Bilmes1998A}。在隐马尔可夫模型当中，$O_{t}$表示对于第$t$时刻的观测，$Q_{t}$表示第$t$时刻的状态。其中，观测$O_{t}$既可以是离散的分布，也可以是连续的分布；而状态$Q_{t}$则一定是离散的。如图\ref{Fig:1}所示，为隐马尔可夫模型的图模型。在隐马尔可夫模型中，存在两种条件独立性假设：
+	\begin{enumerate}
+		\item \textbf{齐次马尔可夫性假设}：对于第$t$时的隐状态而言，其取值只与第$i-1$时刻隐状态有关系，而与其他时刻的状态与观测没有关系，也与$t$无关：
+		\begin{equation}
+			P({Q_t}|{Q_{t - 1}},{O_{t - 1}},...,{Q_1},{O_1}) = P({Q_t}|{Q_{t - 1}}), \quad t=1, 2, ..., T
+		\end{equation}
+		\item \textbf{观测独立性假设}：第$t$时刻的观测变量取值，只与$t$时刻的隐状态有关系，与其他的隐状态及观测没有关系：
+		\begin{equation}
+			P({O_t}|{Q_T},{O_T},{Q_{T - 1}},{O_{T - 1}},...,{Q_t},{Q_{t - 1}}...,{Q_1},{O_1}) = P({O_t}|{Q_t})
+		\end{equation}
+	\end{enumerate}
+	在隐马尔可夫模型当中，第$t$时刻的状态变量$Q_{t}$是一个取值离散的随机变量，有$N$个可能的取值，即从集合$ \{1,...,N\}$中取值。同时，假设“隐藏”的状态转移概率$P(Q_{t}|Q_{t-1})$是与时间无关的，因此可以用矩阵的形式来表示状态转移的关系：$A=\{a_{ij}\}=P(Q_{t}=j|Q_{t-1}=i)$。对于初始的隐状态而言，定义$t=1$时刻的状态变量为：
+	\begin{equation}
+		{\pi_i} = p({Q_1} = i)
+	\end{equation}
+	对于隐状态而言，定义$Q_{t}=j$代表第$t$时刻的隐状态为$j$，因此对于一个过程其状态序列为$q=(q_{1},...,q_{T})$，其中$q_{t} \in \{1,...,N\}$。对于观测而言，定义一个观测序列为$O=(O_{1}=o_{1},...,O_{T}=o_{T})$。在第$t$时刻状态变量$Q_{t}=j$的条件之下观测$O_{t}=o_{t}$的概率记为$b_{j}(o_{t})=P(O_{t}=o_{t}|Q_{t}=j)$，并且定义完整的观测序列的分布为$B=\{b_{j}(·)\}$。
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.5\linewidth]{..//Plots//pgm.pdf}
+		\caption{隐马尔可夫模型的图模型}
+		\label{Fig:1}
+		\vspace{-0.5em}
+	\end{figure}
+	
+	隐马尔可夫模型模型的参数为$\lambda =(A,B,\pi)$。其中矩阵$A$对应于状态转移矩阵，矩阵$B$对应于离散观测矩阵，矩阵$\pi$对应于初始状态矩阵。隐马尔可夫模型的核心包括了三个问题\cite{李航2012统计学习方法}：
+	\begin{enumerate}
+		\item \textbf{概率计算问题}：给定模型参数$\lambda =(A,B,\pi)$和观测序列$O=(o_{1}, o_{2},..., o_{T})$，计算在模型参数$\lambda$下的观测序列出现的概率$P(O|\lambda)$。
+		\item \textbf{学习问题}：已知观测序列$O=(o_{1}, o_{2},..., o_{T})$，估计模型参数$\lambda = (A, B, \pi)$，使得该组参数下$P(O|\lambda)$出现的概率最大。
+		\item \textbf{预测问题}：又被称为\emph{解码问题(Decoding)}。已知模型参数$\lambda = (A, B, \pi)$与观测序列$O=(o_{1}, o_{2},..., o_{T})$，求解此条件下概率$P(Q|O)$最大的状态序列$q=(q_{1}, q_{2}, ..., q_{T})$。
+	\end{enumerate}
+	接下来我们依次来介绍以上几个问题的计算方法。
+
+\section{前后向概率及其性质}
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+	\subsection{前向概率}
+	针对上一节提出的隐马尔可夫模型的基本问题，首先需要定义几个有用的概率分布方便计算。定义隐马尔可夫模型的前向概率为：
+	\begin{equation}
+		\alpha_{i}(t) = p(O_{1}=o_{1}, ..., O_{t}=o_{t}, Q_{t}=i|\lambda)
+	\end{equation}
+	意为观测序列为$o_{1}, ..., o_{t}$与第$t$时刻状态为$Q_{t}=i$同时发生的概率。并且可以导出：
+	\begin{enumerate}
+		\item $\alpha_{i}(1) = \pi_{i}b_{i}(o_{1})$
+		\item $\alpha_{j}(t+1)=[ \sum\limits_{i = 1}^N {{\alpha _i}(t){\alpha _{ij}}} ]b_{j}(o_{t+1})$
+		\item $P(O|\lambda)=\sum\limits_{i = 1}^N {{\alpha _i}(T)}$
+	\end{enumerate}
+	对于性质1，前向概率的初始值受到$\pi$取值的影响。性质2的导出，可以利用隐马尔可夫模型的条件独立性假设：
+	\begin{align}
+		\alpha_{j}(t+1) & = \sum \limits_{i=1}^{N} {p(O_{1}=o_{1}, ..., O_{t+1}=o_{t+1}, Q_{t}=i, Q_{t+1}=j|\lambda)} \notag \\
+						& = \sum \limits_{i=1}^{N} {p(o_{t+1}|o_{1}, ..., o_{t}, Q_{t}=i, Q_{t+1}=j, \lambda)p(o_{1},...,o_{t}, Q_{t}=i, Q_{t+1}=j|\lambda)} \\
+						& = \sum \limits_{i=1}^{N} {p(o_{t+1}|Q_{t+1}=j, \lambda)p(Q_{t+1}=j|Q_{t}=i, \lambda)p(o_{1}, ..., o_{t}, Q_{t}=i|\lambda)} \\
+						& = [ \sum\limits_{i = 1}^N {{\alpha _i}(t){\alpha _{ij}}} ]b_{j}(o_{t+1})
+	\end{align}
+	由此得证前向概率的递推公式。性质3由前向概率的定义可直接获得，这里不再推导。
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	\subsection{后向概率}
+	定义后向概率为：
+	\begin{equation}
+		\beta_{i}(t)=p(O_{t+1}=o_{t+1},...,O_{T}=o_{T}|Q_{t}=i,\lambda)
+	\end{equation}
+	后向概率为第$t$时刻隐状态为$Q_{t}=i$的条件下，观测序列$\{o_{t+1}, ..., o_{T}\}$出现的概率是多少。后向概率同样存在三条性质：
+	\begin{enumerate}
+		\item $\beta_{i}(T) = 1$
+		\item $\beta_{i}(t) = \sum \limits_{j=1}^{N} {a_{ij}b_{j}(o_{t+1})\beta_{j}(t+1)}$
+		\item $P(O|\lambda) = \sum \limits_{i=1}^{N} \beta_{i}(1) \pi_{i} b_{i}(o_{1})$
+	\end{enumerate}
+
+	首先，性质1规定了最终时刻状态为$Q_{T}=i$条件下，观测$O_{T}=o_{T}$发生的概率为1，即$\beta_{i}(T) = 1$。对于性质2而言，可以证明：
+	\begin{align}
+		\beta_{i}(t) = {} & \sum \limits_{j=1}^{N} { p(o_{t+1}, ..., o_{T}, Q_{t+1}=j|Q_{t}=i, \lambda) } \\
+		= {} & \sum \limits_{j=1}^{N} { p(o_{t+1}|o_{t+2}, ..., o_{T}, Q_{t}=i, Q_{t+1}=j, \lambda)p(o_{t+2}, ..., o_{T}, Q_{t+1}=j|Q_{t}=i, \lambda) } \\
+		= {} & \sum \limits_{j=1}^{N} { p(o_{t+1}|Q_{t+1}=j, \lambda)p(o_{t+2}, ..., o_{T}|Q_{t+1}=j, \lambda)p(Q_{t+1}=j|Q_{t}=i, \lambda)} \\
+		= {} & \sum \limits_{j=1}^{N} {[a_{ij}b_{j}(o_{t+1})]\beta_{j}(t+1)}
+	\end{align}
+	由此得证后向概率的递推公式。性质3由后向概率的定义直接获得，这里不再推导。
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	\subsection{与前后向概率相关的概率与期望的计算}
+	在定义了前向与后向概率之后，便可以定义一些与前向与后向概率相关的概率的计算与期望计算的方法。给定模型参数$\lambda$和观测序列$O$，定义在时刻$t$时状态$Q_{t}=i$概率为：
+	\begin{equation}
+		\gamma_{i}(t) = p(Q_{t}=i|O, \lambda)
+	\end{equation}
+	同时可以推导得出：
+	\begin{equation}
+		p(Q_{t}=i|O,\lambda) = \frac{p(Q_{t}=i, O|\lambda)}{p(O|\lambda)} = \frac{p(Q_{t}=i, O|\lambda)}{\sum \limits_{j=1}^{N}p(Q_{t}=j, O|\lambda)}
+	\end{equation}
+	利用马尔可夫条件独立性的性质，可以得到：
+	\begin{align}
+		p(Q_{t}=i, O|\lambda) = {} & p(O|Q_{t}=i, \lambda)p(Q_{t}=i | \lambda) \\
+		= {} & p(o_{1}, ..., o_{t}|Q_{t}=i, \lambda)p(o_{t+1}, ..., o_{T}|Q_{t}=i, \lambda)p(Q_{t}=i|\lambda) \\
+		= {} & \alpha_{i}(t)\beta_{i}(t)
+	\end{align}
+	因此可得：
+	\begin{equation}
+		\gamma_{i}(t) = \frac{\alpha_{i}(t)\beta_{i}(t)}{\sum \limits_{j=1}^{N} \alpha_{j}(t)\beta_{j}(t)}
+	\end{equation}
+	并且可定义：
+	\begin{equation}
+		\xi_{ij}(t) = p(Q_{t}=i, Q_{t+1}=j|O, \lambda)
+	\end{equation}
+	同样可以推得：
+	\begin{equation}
+		\xi_{ij}(t) = \frac{p(Q_{t}=i, Q_{t+1}=j, O|\lambda)}{p(O|\lambda)}
+		= \frac{\alpha_{i}(t)a_{ij}b_{j}(o_{t+1})\beta_{j}(t+1)} {\sum \limits_{i=1}^{N} {\sum \limits_{j=1}^{N} {\alpha_{i}(t)a_{ij}b_{j}(o_{t+1})\beta_{j}(t+1)}}}
+	\end{equation}
+	借助以上定义的一系列的概率，可以得到一些有用的期望公式。将$\gamma_{i}(t)$按时间求和（求期望），可得：
+	\begin{equation}
+		\label{expection_1}
+		\sum \limits_{t=1}^{T-1} \gamma_{i}(t)
+	\end{equation}
+	式(\ref{expection_1})是在观测序列$O$的条件下，隐状态由$i$开始转移的次数的期望。同样的，也可以得到：
+	\begin{equation}
+		\label{expection_2}
+		\sum \limits_{t=1}^{T-1} {\xi_{ij}(t)}
+	\end{equation}
+	式(\ref{expection_2})代表在观测$O$的条件之下，状态由$i$转移到$j$的期望的次数。
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+\section{隐马尔可夫模型的参数估计问题}
+	前一节定义了隐马尔可夫模型的前向与后向概率，这一节介绍在给定观测的前提下，如何对隐马尔可夫模型的参数进行估计。考虑$O=(o_{1},...,o_{T})$作为观测的数据，而潜在的每一时刻的隐状态为$q=(q_{1},...,q_{T})$。根据\emph{EM算法（Expectation-Maximization）}原理，$P(O|\lambda)$代表不完全数据的似然概率，而$P(O,q|\lambda)$则是完全数据的似然概率，而需要估计的参数为$\lambda=(A,B,\pi)$。根据EM算法原理，首先构造概率分布的\emph{J函数}：
+	\begin{equation}
+		J(\lambda, \lambda^{'})=\sum_{q \in Q} {\log(P(O,q|\lambda))P(O,q|\lambda^{'})}
+	\end{equation}
+
+	其中$\lambda^{'}$是初始参数（可能是第一轮迭代时预设的参数，也可能是上一轮迭代的参数）。并且可知：
+	\begin{equation}
+		P(O, q|\lambda) = \pi_{q_{1}} (\prod_{t=1}^{T-1} {b_{q_{t}}(o_{t})} {a_{q_{t}q_{t+1}}}) b_{q_{T}}(o_{T})
+	\end{equation}
+	对上式取对数，并展开可得：
+	\begin{align}
+		 J(\lambda, \lambda^{'}) = {} & \underbrace{\sum_{q \in Q} {\log\pi_{q_{1}}}p(O,q|\lambda^{'})}_{term 1}  + \underbrace{\sum_{q \in Q} ({\sum_{t=1}^{T-1}{\log a_{q_{t}q_{t+1}}}})p(O,q|\lambda^{'})}_{term 2} + \\
+		 & \underbrace{\sum_{q \in Q} (\sum_{t=1}^{T}\log b_{q_{t}}(o_{t}))p(O,q|\lambda^{'})}_{term 3}
+	\end{align}
+	由上式可知，模型的参数$\lambda = \{A, B, \pi\}$分别独立的出现在三项中，因此可以对这三项分别进行优化。对于第一项而言：
+	\begin{equation}
+		\sum_{q \in Q} \log \pi_{q_{1}}p(O, q|\lambda^{'}) = \sum_{i=1}^{N} \log \pi_{i}p(O, q_{1}=i|\lambda^{'})
+	\end{equation}
+	对于该方程，其变量为初始状态$\pi$的取值。并且应当注意到对于初始状态存在约束条件：$\sum_{i=1}^{N} \pi_{i} =1$。对于该方程求解极大值，可以借助拉格朗日乘子法：
+	\begin{equation}
+		LM^{term1} = \frac{\partial}{\partial \pi_{i}}(\sum_{i=1}^{N} \log \pi_{i}p(O, q_{1}=i|\lambda^{'}) + \tau(\sum_{i=1}^{N} \pi_{i}-1)  )
+	\end{equation}
+	由$LM^{term1}$可得$\pi_{i}$的迭代方程：
+	\begin{equation}
+		\label{pi_update}
+		\pi_{i} = \frac{p(O, q_{1}=i|\lambda^{'})}{p(O|\lambda^{'})} = \gamma_{i}(1)
+	\end{equation}
+
+	针对第二项的优化，可写为：
+	\begin{equation}
+		\sum_{q \in Q} ({\sum_{t=1}^{T-1}{\log a_{q_{t}q_{t+1}}}})p(O,q|\lambda^{'}) = \sum_{i=1}^{N} \sum_{j=1}^{N} \sum_{t=1}^{T-1}\log a_{ij} p(O, q_{t}=i, q_{t+1}=j|\lambda^{'})
+	\end{equation}
+	同样的，对于该方程存在约束条件：$\sum_{j=1}^{N} a_{ij}=1$成立，继续运用拉格朗日乘子法可得：
+	\begin{equation}
+		LM^{term2} = \sum_{i=1}^{N} \sum_{j=1}^{N} \sum_{t=1}^{T-1}\log a_{ij} p(O, q_{t}=i, q_{t+1}=j|\lambda^{'}) +  \sum_{i=1}^{N} \tau_{i} ({\sum_{j=1}^{N} a_{ij} - 1})
+	\end{equation}
+	对于$a_{ij}$与$\tau_{i}$分别求偏导，可得：
+	\begin{align}
+		\label{eq_1}
+		& \frac{\partial LM^{term2}}{\partial a_{ij}} = \frac{\sum_{t=1}^{T-1} p(O, q_{t}=i, q_{t+1}=j|\lambda^{'})}{a_{ij}} + \tau_{i} = 0 \\
+		& \frac{\partial LM^{term2}}{\partial \tau_{i}} = \sum_{i=1}^{N} a_{ij} - 1 = 0
+	\end{align}
+	对式(\ref{eq_1})两边进行求和可得：
+	\begin{align}
+		\sum_{j=1}^{N}\sum_{t=1}^{T-1} p(O, q_{t}=i, q_{t+1}=j|\lambda^{'}) & = - \sum_{j=1}^{N} {a_{ij} * \tau_{i}} \\
+																			& = - \tau_{i}
+	\end{align}
+	因此可以推导出$A$矩阵的迭代公式：
+	\begin{equation}
+		\label{A_update}
+		a_{ij} = \frac{\sum_{t=1}^{T-1} p(O, q_{t}=i, q_{t+1}=j|\lambda^{'})}{\sum_{t=1}^{T-1} p(O, q_{t}=i|\lambda^{'})} = \frac{\sum_{t=1}^{T-1}{\xi_{ij}(t) }}{\sum_{t=1}^{T-1}{\gamma_{i}(t)}}
+	\end{equation}
+
+	针对第三项的优化，可将方程变换为：
+	\begin{equation}
+		\sum_{q \in Q} (\sum_{t=1}^{T}\log b_{q_{t}}(o_{t}))p(O,q|\lambda^{'}) = \sum_{i=1}^{N} \sum_{t=1}^{T} \log b_{i}(o_{t})p(O, q_{t}=i|\lambda^{'})
+	\end{equation}
+	对于观测概率，同样存在约束条件：$\sum_{j=1}^{L}{b_{i}(o_{t} = j)}=1$。因此同样利用拉格朗日乘子法：
+	\begin{equation}
+		LM^{term3} = \sum_{i=1}^{N} \sum_{t=1}^{T} \log b_{i}(o_{t})p(O, q_{t}=i|\lambda^{'}) + \sum_{i=1}^{N} \tau_{i}(\sum_{j=1}^{L}b_{i}(o_{t}=j) - 1)
+	\end{equation}
+	对于各变量进行求导：
+	\begin{align}
+		\label{observationParamsEstimation}
+		& \frac{\partial LM^{term3}}{\partial b_{i}(k)} = \frac{ \sum_{t=1}^{T} p(O, q_{t}=i|\lambda^{'}) I(o_{t}=k) }{b_{i}(k)} + \tau_{i} = 0 \\
+		& \frac{\partial LM^{term3}}{\partial \tau_{i}} = \sum_{j=1}^{L}b_{i}(o_{t}=j) - 1 = 0
+	\end{align}
+	注意到式子(\ref{observationParamsEstimation})中，对于$b_{i}(k)$的求导，只针对于观测为$b_{i}(o_{t}=k)$的偏导数才不为0，因此等式后才有$I(o_{t}=k)$指示函数这一项\cite{Bilmes1998A}\cite{Tumarkov}。式子(\ref{observationParamsEstimation})可以进一步推导：
+	\begin{align}
+		\sum_{t=1}^{T} p(O, q_{t}=i|\lambda^{'}) I(o_{t}=k) & = -b_{i}(k) \tau_{i} \\
+		\sum_{k=1}^{L} \sum_{t=1}^{T} p(O, q_{t}=i|\lambda^{'}) I(o_{t}=k) & = \sum_{k=1}^{L} -b_{i}(k) \tau_{i} \\
+		\label{tauEq}
+		\sum_{t=1}^{T} p(O, q_{t}=i|\lambda^{'}) & = -\tau_{i}
+	\end{align}
+	回代(\ref{tauEq})到(\ref{observationParamsEstimation})，便可以得到$b_{i}(k)$的参数更新公式：
+	\begin{align}
+		\label{B_update}
+		b_{i}(k) & = \frac{\sum_{t=1}^{T} p(O, q_{t}=i|\lambda^{'}) I(o_{t}=k)}{\sum_{t=1}^{T} p(O, q_{t}=i|\lambda^{'})} \\
+				 & = \frac{\sum_{t=1}^{T} \gamma_{i}(t)I(o_{t}=k)}{\sum_{t=1}^{T} \gamma_{i}(t)}
+	\end{align}
+	
+	式子(\ref{pi_update})，式子(\ref{A_update})与式子(\ref{B_update})共同组成了EM算法下的隐马尔可夫模型的参数$\lambda=(A,B,\pi)$更新公式。
+	
+\section{维特比算法}
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	前一节介绍的\emph{Baum-Welch算法}（也就是上节提到的\emph{EM算法}）可以解决在观测的$O=(o_{1},...,o_{T})$获取之后的隐马尔可夫模型的参数估计问题。本节介绍对于观测$O=(o_{1},...,o_{T})$获取之后模型的隐状态获取问题，通常也被称为\emph{预测问题}，或者是\emph{解码问题}。
+	
+	解码问题的形式为：已知模型参数$\lambda = (A, B, \pi)$与观测序列$O=(o_{1}, o_{2},..., o_{T})$，求解此条件下概率$P(Q|O)$最大的状态序列$q=(q_{1}^{*}, q_{2}^{*}, ..., q_{T}^{*})$。解码问题的求解需要实现定义两个辅助变量：$\delta$与$\psi$。定义$\delta_{i}(t)$代表所有$t$时刻的隐状态为$q_{t}=i$的路径的最大值：
+	\begin{equation}
+		\delta_{i}(t) = \max_{q_{1},...,q_{t-1}} P(q_{t}=i, q_{1}, ..., q_{t-1}, o_{1}, ..., o_{t}|\lambda)
+	\end{equation}
+	由$\delta_{i}(t)$的定义，便可以获取状态变量$\delta$的递推公式：
+	\begin{align}
+		\delta_{i}(t+1) & = \max_{q_{1},...,q_{t}} P(q_{t+1}=i, q_{1}, ..., q_{t}, o_{1}, ..., o_{t+1}|\lambda) \\
+						& = \max_{q_{1},...,q_{t}} P(q_{t+1}=i, o_{t+1}|q_{1}, ..., q_{t}, o_{1}, ..., o_{t}, \lambda) P(q_{1}, ..., q_{t}, o_{1}, ...,
+						o_{t}|\lambda) \\
+						& = \max_{q_{1},...,q_{t}} P(q_{t+1}=i|q_{t}, \lambda) P(o_{t+1}|q_{t+1}=i, \lambda) P(q_{1}, ..., q_{t}, o_{1}, ..., o_{t}|\lambda) \\
+						& = \max_{1\leq j \leq N} P(q_{t+1}=i|q_{t}=j, \lambda) P(o_{t+1}|q_{t+1}=i, \lambda) P(q_{1}, ..., q_{t}=j, o_{1}, ..., o_{t}|\lambda) \\
+						& = \max_{1\leq j \leq N} [\delta_{j}(t)a_{ji}]b_{i}(t+1)
+	\end{align}
+	由以上的式子可以看出，$\delta_{i}(t)$的计算中存在最优的子结构，对应于寻找$\delta_{i}(t)$构成的矩阵中的一条最优路径，因此可以借助动态规划对最优路径进行搜索。对于最优路径的搜索，定义：
+	\begin{equation}
+		\psi_{i}(t) = \arg \max_{1\leq j \leq N} [\delta_{j}(t-1)a_{ji}]
+	\end{equation}
+	对于最优路径的回溯，时间从时刻$T-1$一直到时刻$1$，路径回溯的方式为：
+	\begin{equation}
+		q_{t}^{*} = \psi_{q_{t+1}^{*}}(t+1)
+	\end{equation}
+	由此可以回溯最优路径$q=(q_{1}^{*}, q_{2}^{*}, ..., q_{T}^{*})$。
+	
+\section{关键代码分析}
+	为了加深读者印象，本文给出前向概率，后向概率与维特比算法的Python代码供读者参考。考虑一个隐马尔可夫过程，其参数为$\lambda = \{A, B, \pi\}$。对于该过程，其系统矩阵，观测矩阵，初始值分别为：
+	\begin{equation}
+	A = \begin{bmatrix}
+		0.5 & 0.2 & 0.3 \\
+		0.3 & 0.5 & 0.2 \\
+		0.2 & 0.3 & 0.5
+		\end{bmatrix}\quad
+	B = \begin{bmatrix}
+		0.5 & 0.5 \\
+		0.4 & 0.6 \\
+		0.7 & 0.3
+		\end{bmatrix} \quad
+	\pi = \begin{bmatrix}
+			0.2 \\
+			0.4 \\
+			0.4
+		  \end{bmatrix} \quad
+	\end{equation}
+	考虑观测序列为$O = (0, 1, 0)$，可以对其进行解码，解码结果为$\{q_{1}=3, q_{2}=3, q_{3}=3\}$；前向概率为0.13022。
+	
+	首先给出前向概率的代码：
+	\begin{lstlisting}
+	import numpy as np
+	def forward_prob(A=[], B=[], pi=[], O=[]):
+		# Prevent the invalid input parameters
+		if len(A) == 0 or len(B) == 0 or len(pi) == 0 or len(O) == 0:
+			return None
+	
+		# Initializing the alpha matrix and some useful parameters
+		numObservations, numStates = len(O), len(A)
+		alpha = np.zeros((numStates, numObservations))
+		
+		# Dynamic programming for the forward probability
+		for i in range(numStates):
+			alpha[numStates, 0] = B[i, O[0]] * pi[i]
+		for i in range(1, numObservations):
+					for j in range(numStates):
+						# WARNING: This is element-wise multiplication, not the matrix multiplication
+						alpha[j, i] = np.sum(alpha[:, i-1] * A[:, j]) * B[j, O[i]]
+		return alpha
+	\end{lstlisting}
+	
+	对于后向概率而言，其代码为：
+	\begin{lstlisting}
+	def backward_prob(A=[], B=[], pi=[], O=[]):
+		# Prevent the invalid input parameter
+		if len(A) == 0 or len(B) == 0 or len(pi) == 0 or len(O) == 0:
+			return None    
+	
+		# Initializing the beta matrix(dp matrix)
+		numObservations, numStates = len(O), len(A)
+		beta = np.zeros((numStates, numObservations))
+	
+		# Dynamic programming for the backward probability
+		beta[:, -1] = 1
+		for i in range(numObservations - 2, 0 - 1, -1):
+			for j in range(numStates):
+				beta[j, i] = np.sum(A[j, :] * B[:, O[i + 1]] * beta[:, i + 1])
+		return beta
+	\end{lstlisting}
+	
+	针对维特比算法而言，更加优雅的实现参见\cite{bworld}，这里给出“不优雅”，但是能够使用的代码实现：
+	\begin{lstlisting}
+	def viterbi(A=[], B=[], pi=[], O=[]):
+		# Prevent the invalid input parameter
+		if len(A) == 0 or len(B) == 0 or len(pi) == 0 or len(O) == 0:
+			return None
+	
+		# Initializing some parameters
+		numObservations, numStates = len(O), len(A)
+		delta, deltaInd = np.zeros((numStates, numObservations))
+		deltaInd = np.zeros((numStates, numObservations))
+		optimalPath = [None] * numObservations
+	
+		# Dynamic programming for the delta variable
+		delta[:, 0] = pi * B[:, O[0]]
+		for i in range(1, numObservations):
+			for j in range(numStates):
+				tmp = delta[:, i-1] * A[:, j]
+				deltaInd[j, i] = np.argmax(tmp)
+				delta[j, i] = max(tmp * B[j, O[i]])
+		
+		# Backtracking for the optimal path.
+		optimalPath[-1] = np.argmax(delta[:, -1])
+		for i in range(numObservations - 1, 0, -1):
+			optimalPath[i-1] = int(deltaInd[optimalPath[-1], i])
+		return optimalPath, delta, deltaInd
+	\end{lstlisting}
+	对于以上代码，可以实现前向概率，后向概率与解码的计算。代码能够进一步被优化，可参考\cite{bworld}，优化的核心是对于每一个时间步的动态规划状态的计算，改成矩阵乘积的形式，能够使代码更简洁，并且加速计算。
+	
+	\section{总结}
+	本文总结了隐马尔可夫模型的几个关键要点，并推导了隐马尔可夫模型的一些关键公式，给出了关键的代码实现。隐马尔可夫模型的Python实现可以参考hmmlearn包\cite{hmmlearn}，实现了隐马尔可夫模型的参数估计，解码等功能。
+	
+\bibliographystyle{unsrt}
+\bibliography{HMM_ref}  
+\end{document}

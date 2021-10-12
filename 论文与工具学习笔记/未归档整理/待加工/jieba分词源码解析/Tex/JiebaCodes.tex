@@ -1,0 +1,97 @@
+% 设置编码，编码为UTF-8编码，字号大小12pt
+\documentclass[UTF8, 12pt]{ctexart}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{titlesec}{\tiny}
+\usepackage{amsmath}
+\usepackage{authblk}
+% 定义超链接的颜色
+\usepackage[colorlinks, linkcolor=blue, citecolor=blue]{hyperref}
+
+% 标题左对齐
+%\CTEXsetup[format={\Large\bfseries}]{section}
+
+% 定义
+\newtheorem{theorem}{Theorem}[section]
+% 控制图片的位置，让图片紧紧的跟住文字，只需写\begin{figure}[H]
+\usepackage{float}
+% 使用文献引用
+\usepackage{cite}
+% 使用算法排版模块
+\usepackage{algorithm}  
+\usepackage{algorithmic}
+\renewcommand{\algorithmicrequire}{\textbf{输入:}}  
+\renewcommand{\algorithmicensure}{\textbf{输出:}} 
+% 设置文本格式，文本间距等，具体参考如下：
+% left=2cm, right=2cm, top=2.5cm,bottom=1.5cm
+\geometry{a4paper, centering, scale=0.8}
+\newtheorem{thm}{定义}
+\renewcommand{\baselinestretch}{1.3}
+
+% 定义编程语言
+\usepackage{listings}
+\usepackage{color}
+\usepackage{fontspec}
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+\definecolor{light-gray}{gray}{0.95}
+
+\lstset{frame=tb,
+		language=Python,
+		aboveskip=3mm,
+		belowskip=1mm,
+		showstringspaces=false,
+		columns=flexible,
+		basicstyle=\small\ttfamily,
+		numbers=left,
+		numberstyle=\small\color{gray},
+		keywordstyle=\color{blue},
+		commentstyle=\color{dkgreen},
+		stringstyle=\color{mauve},
+		breaklines=true,
+		breakatwhitespace=true,
+		tabsize=4,
+		backgroundcolor=\color{light-gray}
+}
+
+\begin{document}
+
+	
+	\title{\heiti \Huge{Jieba分词原理浅析}}
+	\author{\kaishu 尹卓 \\ E-mails \href{mailto:zhuoyin94@163.com}{zhuoyin94@163.com}}
+	\date{\today}
+	\maketitle
+	
+	% 增加目录
+	\tableofcontents
+	\newpage
+	\section{引言}
+	
+	
+	\begin{enumerate}
+		\item “沙瑞金赞叹易学习的胸怀，是金山的百姓有福，可是这件事对李达康的触动很大。”
+		\item “易学习又回忆起他们三人分开的前一晚，大家一起喝酒话别，易学习被降职到道口县当县长，王大路下海经商，李达康连连赔礼道歉，觉得对不起大家，他最对不起的是王大路，就和易学习一起给王大路凑了5万块钱，王大路自己东挪西撮了5万块，开始下海经商。没想到后来王大路竟然做得风生水起。”
+		\item “沙瑞金向毛娅打听他们家在京州的别墅，毛娅笑着说，王大路事业有成之后，要给欧阳菁和她公司的股权，她们没有要，王大路就在京州帝豪园买了三套别墅，可是李达康和易学习都不要，这些房子都在王大路的名下，欧阳菁好像去住过，毛娅不想去，她觉得房子太大很浪费，自己家住得就很踏实。”
+	\end{enumerate}
+	
+	\section{结巴分词的功能与接口}
+	jieba.lcut
+	
+	\section{结巴分词的程序流程}
+	结巴分词的流程：正则粗分，载入用户词典，DAG细分
+	
+	\section{Trie树到前向哈希}
+	github pull request索引词频，构建Hash表。（源代码）
+	
+	\section{DAG的最大概率切分}
+	源代码解析
+	
+	\section{基于HMM的新词发现}
+	源代码解析
+	
+	\section{总结}
+	Jieba分词的优缺点。
+	
+	
+\end{document}

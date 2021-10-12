@@ -1,0 +1,105 @@
+% 设置编码，编码为UTF-8编码，字号大小12pt
+\documentclass[UTF8, 12pt]{ctexart}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{titlesec}{\tiny}
+\usepackage{amsmath}
+\usepackage{authblk}
+% 定义超链接的颜色
+\usepackage[colorlinks, linkcolor=blue, citecolor=blue]{hyperref}
+% 定义
+\newtheorem{theorem}{Theorem}[section]
+% 控制图片的位置，让图片紧紧的跟住文字，只需写\begin{figure}[H]
+\usepackage{float}
+% 使用文献引用
+\usepackage{cite}
+% 使用算法排版模块
+\usepackage{algorithm}  
+\usepackage{algorithmic}
+\renewcommand{\algorithmicrequire}{\textbf{输入:}}  
+\renewcommand{\algorithmicensure}{\textbf{输出:}} 
+% 设置文本格式，文本间距等，具体参考如下：
+% left=2cm, right=2cm, top=2.5cm,bottom=1.5cm
+\geometry{a4paper, centering, scale=0.81}
+\newtheorem{thm}{定义}
+
+\begin{document}
+\title{\heiti 常见的概率分布的密度函数}
+\author{\kaishu 尹卓\\ E-mails: zhuoyin94@163.com}
+\date{\today}
+\maketitle
+
+% 增加目录
+\tableofcontents
+\newpage
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{引言}
+本文旨在总结与记录一些LDA中需要运用到的几个概率分布，包括伽马分布，贝塔分布等。
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{常见分布的分布函数}
+
+\subsection{拉普拉斯分布}
+	拉普拉斯分布(Laplace distribution)，也被叫做双边指数分布(Double sided exponential)，其概率密度函数的形式如下：
+	\begin{equation}
+		Lap(x|\mu, b) = \frac{1}{2b} exp(-\frac{|x-\mu|}{b})
+	\end{equation}
+	这里的$\mu$是位置参数，而$b$是尺度参数(Scale parameter)。并且分布具有$mean=\mu$，$variance=b$的性质。注意在Lasso回归当中，参数的先验分布就是拉普拉斯分布。
+
+\subsection{伽马分布}
+	伽马分布(Gamma distribution)是一种针对正实数的分布，要求随机变量$x > 0$。决定伽马分布的形状的参数有两个，一个是$a > 0$，另外一个是$b > 0$：
+	\begin{equation}
+		Ga(x|shape=a, rate=b) = \frac{b^{a}}{\Gamma(a)}x^{a-1}e^{-xb}
+	\end{equation}
+	其中，$\Gamma(a)$是伽马函数：
+	\begin{equation}
+		\Gamma(t) = \int_{0}^{\infty} {u^{t-1}e^{-u}}du
+	\end{equation}
+	伽马分布有这么一些性质：$mean=a/b$，$mode=(a-1)/b$，$var=a/b^{2}$，其中$mode$表示中位数。以下几种分布事实上是伽马分布的特殊形式：
+	\begin{enumerate}
+		\item 指数分布(Exponential distribution)。指数分布事实上$Expon(x|\lambda) = Ga(x|1, \lambda)$。
+		\item 卡方分布(Chi-square distribution)。卡方分布事实上等价于$\chi^{2}(x|\nu) = Ga(x|\nu/2, 1/2)$。而卡方分布定义为：$S=\sum_{i=1}^{\nu}{Z_{i}^{2}}$，则$S \sim \chi_{\nu}^{2}$，其中$Z_{i} \sim N(0, 1)$。
+	\end{enumerate}
+	还有一个有用的结论是：若是随机变量$X \sim Ga(a, b)$，则可得$1/X \sim IG(a, b)$，其中IG是逆伽马分布(Inverse gamma distribution)。定义为：
+	\begin{equation}
+		IG(x| shape=a, scale=b) = \frac{b^{a}}{\Gamma(a)}x^{-(a+1)}e^{-b/x}
+	\end{equation}
+	并且：$mean=b/(a-1)$，$mode=b/(a+1)$，$var=b^{2}/(a-1)^{2}(a-2)$。其中均值存在的条件是$a > 1$，方差存在的条件是$a > 2$。
+	
+	介绍了伽马分布，着重介绍一下伽马函数：
+	\begin{enumerate}
+		\item 伽马函数的递推公式可以写为：$\Gamma(x + 1) = x \Gamma(x)$。并且对于正整数$n$，一定存在：
+		\begin{equation}
+			\Gamma(n + 1) = n!
+		\end{equation}
+		递推公式的推导为：
+		\begin{align}
+			\Gamma(n + 1) = & \int_{0}^{\infty}{ e^{-x} x^{n + 1 - 1} }dx = \int_{0}^{\infty} {e^{-x} x^{n}}dx \\
+						  = & \int_{0}^{\infty} {e^{-x} x^{n}}dx = [\frac{-x^{n}}{e^{x}}]_{0}^{\infty} + n\int_{0}^{\infty} {e^{-x} x^{n-1}}dx
+		\end{align}
+		关键的一项推导是：当$x = 0$的时候，$-0^{n}/e^{0} = 0$。当$x \rightarrow \infty$时，根据洛必达法则：
+		\begin{equation}
+			\lim\limits_{x \rightarrow \infty} \frac{-x^{n}}{e^{x}} = \lim\limits_{x \rightarrow \infty} \frac{-n!}{e^{x}} = 0
+		\end{equation}
+		由此获得递推公式。
+		\item 乘法定理：
+		\begin{align}
+			& \Gamma(x)\Gamma(x + 1/2) = 2^{1 - 2z} \sqrt{\pi} \Gamma(2z) \\
+			& \Gamma(x)\Gamma(x + \frac{1}{m})...\Gamma(x + \frac{m - 1}{m}) = (2\pi)^{(m-1)/2} m^{1/2 - mx} \Gamma(mx)
+		\end{align}
+	\end{enumerate}
+
+\subsection{贝塔分布}
+	贝塔分布(Beta distribution)被定义为：
+	\begin{equation}
+		Beta(x|a, b) = \frac{1}{B(a, b)} x^{a-1}(1-x)^{b-1}
+	\end{equation}
+	其中$B(a, b)$是贝塔函数：
+	\begin{equation}
+		B(a, b) = \frac{\Gamma(a)\Gamma(b)}{\Gamma(a + b)}
+	\end{equation}
+	其中要求$a, b > 0$。若是$a = b = 1$，我们可以得到均匀分布(Uniform distribution)；若是$a$与$b$都小于1， 我们可以得到峰值在0与1的双峰分布(Bimodal distribution)；若是$a$与$b$都大于1，则分布是单峰分布(Unimodal distribution)。分布的性质有：$mean = a/(a + b)$，$mode = (a - 1)/(a + b - 2)$，$variance = ab/(a + b)^2(a + b + 1)$。
+	
+%\bibliographystyle{unsrt}  
+%\bibliography{DBSCAN_ref}  
+\end{document}

@@ -1,0 +1,325 @@
+% 设置编码，编码为UTF-8编码，字号大小12pt
+\documentclass[UTF8, 12pt]{ctexart}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{titlesec}{\tiny}
+\usepackage{amsmath}
+% 定义
+\newtheorem{theorem}{Theorem}[section]
+% 控制图片的位置，让图片紧紧的跟住文字，只需写\begin{figure}[H]
+\usepackage{float}
+% 使用文献引用
+\usepackage{cite}
+
+% 使用算法排版模块
+\usepackage{algorithm}  
+\usepackage{algorithmic}
+
+% 增加网址引用
+\usepackage{url}
+% 设置文本格式，文本间距等，具体参考如下：
+% left=2cm, right=2cm, top=2.5cm,bottom=1.5cm
+\geometry{a4paper, centering, scale=0.81}
+\newtheorem{thm}{定义}
+
+\begin{document}
+\title{\heiti 使用支持向量机做异常检验}
+\author{\kaishu 尹卓\\北京工业大学\\MichaelYin777@outlook.com}
+\date{\today}
+\maketitle
+
+% 增加目录
+\tableofcontents
+\newpage
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{引言}
+支持向量机是90年代中期Vapnik教授根据统计学习理论提出来的用于模式识别与回归分析的一种机器学习算法。支持向量机形式优美，鲁棒性强，具有非常广泛的应用。单类支持向量机是基于支持向量机衍生出来的聚类算法，主要用被来对数据进行异常检测，在信用卡反欺诈，网站侵入检测方面有着重要应用。
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{支持向量机回顾}
+
+原始的支持向量机起源于统计学习理论中的线性分类器，当考虑二分类的问题时候，我们希望学习出一个超平面，其中$w$是超平面的参数，输入数据的判别式为：
+\begin{equation}
+	f(x) = sign(w·x+b)
+\end{equation}
+其中$sign(·)$代表符号函数。如图\ref{Fig:1}所示，实线是最优的将两堆数据分开的\emph{超平面(Hyperplane)}超平面，虚线是\emph{决策边界(Decision boundary)}。支持向量机希望学习出一个超平面，离\emph{输入空间(Input space)}中的两堆点尽量的远。
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.45\linewidth]{..//Plots//LinearSeparable.pdf}
+	\caption{线性可分的数据集，实线为超平面}
+	\label{Fig:1}
+	\vspace{-0.5em}
+\end{figure}
+
+对于具有$m$个样本点，$n$个特征的数据，支持向量机的数学问题可以抽象为：
+\begin{align}
+	\min_{w,b} &  \quad \frac{1}{2}{\Vert w \Vert}^{2} \\
+	s.t. &  \quad y_{i}(wx_{i}+b) \geq 1, \quad i = 1, ..., m
+\end{align}
+
+其中$y_{i} \in \{-1, 1\}$只有两种可能的取值。通过拉格朗日乘子法，构建拉格朗日函数：
+\begin{equation}
+	L(w,b,\alpha) = \frac{1}{2}{\Vert w \Vert}^{2} - \sum_{i=1}^{m}\alpha_{i}y_{i}(wx_{i}+b)+\sum_{i=1}^{m}\alpha_{i}
+	\label{eq:1}
+\end{equation}
+
+我们称公式(\ref{eq:1})为支持向量机的\emph{原始问题(Primal problem)}。对于解原始问题，在一定条件下等价于解\emph{对偶问题(Dual problem)}，若式(\ref{eq:1})代入KKT条件以后，问题形式上就变为了：
+\begin{align}
+	\label{eq:2}
+	\max_{\alpha} & \quad \sum_{i=1}^{m}\alpha_{i} - \frac{1}{2}\sum_{i=1}^{m}\sum_{j=1}^{m}\alpha_{i}\alpha_{j}y_{i}y_{j}(x_{i}·x_{j}) \\
+	s.t. & \quad \alpha_{i} \geq 0, \\
+	{}	 & \quad \sum_{i=1}^{m} \alpha_{i}y_{i} = 0, \quad i=1,...,m
+\end{align}
+
+解式(\ref{eq:2})等对应的约束优化问题，我们可以得到$\alpha^{*} = \{\alpha_{1}^{*},...,\alpha_{m}^{*}\}$的值。以上解法可以解决线性可分情况下的支持向量机问题，当数据线性不可分时，我们对约束优化问题引入\emph{松弛变量(Slack variable)}，于是问题转变为：
+\begin{align}
+	\min_{w,b,\xi} &  \quad \frac{1}{2}{\Vert w \Vert}^{2} + C\sum_{i=1}^{m}\xi_{i}\\
+	s.t. &  \quad y_{i}(wx_{i}+b) \geq 1 - \xi_{i},\\
+	{}   &  \quad \xi_{i} \geq 0 \quad i = 1, ..., m
+\end{align}
+
+对应的对偶问题可以写作：
+\begin{align}
+	\max_{\alpha} & \quad \sum_{i=1}^{m}{\alpha_{i}} - \frac{1}{2}\sum_{i=1}^{m}\sum_{j=1}^{m}\alpha_{i}\alpha_{j}y_{i}y_{j}(x_{i}·x_{j})\\
+	s.t. & \quad 0 \leq \alpha_{i} \leq C, \quad i=1,...,m \\
+	{}   & \quad \sum_{i=1}^{m}\alpha_{i}y_{i} = 0
+\end{align}
+
+获得$\alpha^{*} = \{\alpha_{1}^{*},...,\alpha_{m}^{*}\}$之后，新样本$z$的类判别式可以写为：
+\begin{equation}
+\label{eq:3}
+	f(x) = sign(\sum_{i=1}^{m}y_{i}\alpha_{i}^{*}(z·x_{i}))
+\end{equation}
+
+由(\ref{eq:3})可以看到，类判别式与样本与样本之间的内积有密切关系，于是可以自然的引入\emph{核方法(Kernel trick)}。常用的核函数有\emph{高斯核(Gaussian kernel)}或者\emph{多项式核(Polynomial kernel)}。核方法相当于将数据从\emph{输入空间(Input space)}映射到\emph{特征空间(Feature space)}：$\boldsymbol{\Phi}: \boldsymbol{\chi} \to \boldsymbol{H}$，在高维空间中，数据由线性不可分转化为了线性可分的情况。这里我们着重讨论一下高斯核下样本的特征空间，样本$x$经过特征变换以后，得到特征空间的向量$\boldsymbol{\Phi}(x)$，有以下的性质值得注意：
+\begin{equation}
+	\label{eq:4}
+	{\Vert \boldsymbol{\Phi}(x) \Vert}^{2} = \boldsymbol{\Phi}(x) ·\boldsymbol{\Phi}(x) = 1
+\end{equation}
+
+式(\ref{eq:4})说明，样本点数据经过特征变换之后，在特征空间内部，数据自身的内积为1，说明经过特征变换以后，所有的数据都位于一个\emph{超球(Hyperball)}上面。
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{支持向量描述(SVDD)}
+\subsection{支持向量描述基本理论}
+\emph{支持向量描述(Support vector data description)}希望用一个超球包裹住没有标签的数据，使得球外的数据尽量少，球内的数据尽量多，在二维情况之下，就是想找到一个圆形的边界，尽可能的将数据包裹于圆内。其中超球的半径为$R$，而球心空间坐标为$a$。其问题可以被抽象为：
+\begin{align}
+	\min_{R, a, \xi} & \quad R^{2} + C\sum_{i}^{m}\xi_{i} \\
+	s.t. & \quad {\Vert x_{i} - a \Vert}^2 \leq R^{2}+\xi_{i}, \\
+	     & \quad \xi_{i} \geq 0, \quad i = 1,...,m
+\end{align}
+
+上式中$\xi_{i}$是松弛变量，意即允许少量数据位于超球之外，同时在优化目标里惩罚这部分数据。同样可以利用拉格朗日乘子法：
+\begin{align}
+	\label{eq:5}
+	 L(R,a,\xi,\alpha,\gamma) = R^{2} + C\sum_{i}^{m}\xi_{i} - \sum_{i=1}^{m}\alpha_{i} \{ R^{2} + \xi_{i} - (x_{i}·x_{i} - 2a·x_{i} + a·a)\} - \sum_{i=1}^{m}\gamma_{i}\xi_{i}
+\end{align}
+
+其中，$\alpha_{i} \geq 0$，并且$\gamma_{i} \geq 0$。而函数$L(R,a,\xi,\alpha,\gamma)$希望对于$R, a, \xi_{i}$变量最小化，而对于$\alpha, \gamma$变量最大化（对偶问题等价于原问题的条件）。式子(\ref{eq:5})对于各个变量求偏导，可以得到：
+\begin{align}
+	& \frac{\partial{L}}{\partial{R}} = 0 \quad : \quad \sum_{i=1}^{m}\alpha_{i} = 1\\
+	\label{LinearCombination}
+	& \frac{\partial{L}}{\partial{\alpha}} = 0 \quad : \quad a = \sum_{i=1}^{m}\alpha_{i}x_{i} \\
+	\label{eq:6}
+	& \frac{\partial{L}}{\partial{\xi_{i}}} = 0 \quad : \quad \gamma_{i} = C - \alpha_{i}, \quad i=1, ..., m
+\end{align}
+
+由式子(\ref{eq:6})我们可知， 有$\alpha_{i} = C - \gamma_{i}$成立；并且$\gamma_{i} \geq 0$，那么立得：
+\begin{equation}
+	0 \geq \alpha_{i} \geq C, \quad i = 1,...,m
+\end{equation}
+
+利用KKT条件，可以简化(\ref{eq:5})，具体来说，就是将KKT条件代入到式(\ref{eq:5})中去，可得：
+\begin{equation}
+	\label{eq:7}
+	L(R,a,\xi,\alpha,\gamma) = \sum_{i=1}^{m}\alpha_{i}(x_{i}·x_{j}) - \sum_{i=1}^{m}\sum_{j=1}^{m}\alpha_{i}\alpha_{j}(x_{i}·x_{j})
+\end{equation}
+
+其中$0 \geq \alpha_{i} \geq C$， 并且$\sum_{i=1}^{m} \alpha_{i} = 1$。
+式(\ref{eq:7})是一个标准的约束优化二次规划问题，可以使用专门的二次规划软件进行求解。获得最优解$\alpha^{*}$之后，由公式(\ref{LinearCombination})可得超球的中心的坐标，其坐标可以看做为训练样本关于$\alpha_{i}^{*}$的线性组合，因此$\alpha_{i}^{*}=0$的样本可以被丢弃，因为其对于超球的坐标的确定并没有贡献。只有$\alpha_{i}^{*}>0$的样本对于数据集的描述有意义，这些数据被叫做\emph{支持向量(Support vectors)}。并且可知：
+\begin{enumerate}
+	\item 对于在超球外部的样本，约束条件${\Vert x_{i} - a \Vert}^2 = R^{2}+\xi_{i}$成立，由对偶互补条件可知，其拉格朗日乘子$\alpha_{i}^{*} = C$恒成立。
+	\item 对于在超球内部的样本，${\Vert x_{i} - a \Vert}^2 < R^{2}$成立，即其拉格朗日乘子$\alpha_{i}^{*} = 0$恒成立。
+	\item 对于超球面上的样本，由对偶互补条件，我们可知其取值范围为：$C > \alpha_{i}^{*} >0$。
+\end{enumerate}
+
+因为我们通过解二次规划问题获取了球的球心，所以我们可以测试新的样本是否位于球的内部。新的样本$z$接受与否可以由(\ref{SphereAccepted})式确定：
+\begin{equation}
+	\label{SphereAccepted}
+	{\Vert z-a \Vert}^{2} = (z·z) - 2\sum_{i=1}^{m}\alpha_{i}^{*}(z·x_{i}) + \sum_{i}^{m}\sum_{j=1}^{m} \alpha_{i}^{*}\alpha_{j}^{*}(x_{i}·x_{j}) \leq R^{2}
+\end{equation}
+
+因此，便得到\emph{支持向量描述(Support vector data description)}的判别式：
+\begin{equation}
+	f_{SVDD}(z;\alpha^{*},R) = I({\Vert z-a \Vert}^{2} \leq R^{2})
+\end{equation}
+
+其中$I$代表\emph{指示函数(Indicator function)}。以上情况对应于样本完全没有标签的情况，若是当少量样本含有标签时，可以进一步提高精准度，具体参见文献[]。
+
+\subsection{非线性支持向量描述}
+若是使用超球来描述数据的“紧致”程度，模型对于数据的描述能力是不够的，因为现实中数据在高维空间可能会呈现出各种各样的形状。若是将数据映射到新的特征空间，也许就可以获得一个更加灵活的边界。在这里使用之前支持向量机回顾一章中提到的相似的做法，对于数据进行升维：
+\begin{equation}
+	x^{*} = \boldsymbol{\Phi}(x)
+\end{equation}
+
+这样，式(\ref{eq:7})就变成了：
+\begin{equation}
+	L(R,a,\xi,\alpha,\gamma) = \sum_{i=1}^{m}\alpha_{i}(\boldsymbol{\Phi}(x_{i})·\boldsymbol{\Phi}(x_{i})) - \sum_{i=1}^{m}\sum_{j=1}^{m}\alpha_{i}\alpha_{j}(\boldsymbol{\Phi}(x_{i})·\boldsymbol{\Phi}(x_{j}))
+\end{equation}
+
+这种技巧在支持向量机里被叫做\emph{核技巧(Kernel trick)}。核技巧被用来处理数据线性不可分的情况，数据被映射到高维空间里进行运算。这样当计算支持向量机相关问题的时候，只需要计算一个$m*m$的一个核矩阵，核矩阵对应位置的元素为：$\boldsymbol{\Phi}(x_{i})·\boldsymbol{\Phi}(x_{j})$，然后解出最优的$\alpha^{*}$，便可以判别新样本的类标签。如之前介绍的支持向量机的原理一样，有两种比较常用的映射关系：多项式核与高斯核。
+
+多项式核函数在高维空间里的内积表示为：
+\begin{equation}
+	K(x_{i}, x_{j}) = (x_{i}·x_{j}+1)^{2}
+\end{equation}
+
+对于$n$个特征，想要升到$s$维的数据，其新的数据表示的特征的个数为：
+\begin{equation}
+	Number \, of \, features = \frac{(s+n)!}{n!s!}
+\end{equation}
+
+多项式核函数的一个重要缺点是，当$s$取得非常大的时候，在新的特征空间内的向量的内积会非常的大，而向量之间的角度将会非常的小:
+\begin{equation}
+	(x_{i}·x_{j})^{s} = \cos^{s}(\theta_{ij}){\Vert x_{i} \Vert}^{s}·{\Vert x_{j} \Vert}^{s} \simeq {\Vert x_{i} \Vert}^{s}·{\Vert x_{j} \Vert}^{s}
+\end{equation}
+这样样本$x_{i}$与样本$x_{j}$之间在新的输入空间将会失去区分度。
+
+高斯核的核函数定义为：
+\begin{equation}
+	K(x_{i}, x_{j}) = \exp(\frac{-{\Vert x_{i} - x_{j} \Vert}^{2}}{s^2})
+\end{equation}
+
+对于高斯核函数而言，数据被映射到了无穷维的空间中去。并且特征空间中，向量$x_{i}$与其自身的的内积在新的特征空间中$K(x_{i}, x_{i}) = 1$，说明新的空间中，所有向量的模都为1。并且当$x_{i}$与$x_{j}$在原始输入空间中相距的非常远的时候，在特征空间中${\Vert x_{i} - x_{j} \Vert}^{2}$便会非常大，便是特征空间中的内积$K(x_{i}, x_{j}) \approx 0$，这也说明两个在原始空间相距较远的向量在新的空间中近乎的垂直。并且由$K(x_{i}, x_{i}) = 1$，如之前的支持向量机机中提到的，所有数据将会位于一个超球上面。
+
+\begin{figure}[H]
+	\centering
+	\begin{tabular}{cc}
+		\includegraphics[width=0.30\linewidth]{..//Plots//SVDD.pdf}  & 
+		\includegraphics[width=0.30\linewidth]{..//Plots//NuSVC.pdf} \\
+		(a) & (b)\\
+	\end{tabular}
+	\caption{(a)SVDD希望用球包裹数据 (b)单类支持向量机希望找到离原点最远的决策边界}
+	\label{Fig:2}
+	\vspace{-0.5em}
+\end{figure}
+
+
+由于$K(x_{i}, x_{i}) = 1$，支持向量描述想要优化的拉格朗日函数将会变为：
+\begin{equation}
+	L = - \sum_{i=1}^{m}\sum_{j=1}^{m}\alpha_{i}\alpha_{j}K(x_{i}·x_{j})
+\end{equation}
+
+同时保持一致的约束条件：$\sum_{i=1}^{m}\alpha_{i} = 1$， 其中$0 \leq \alpha_{i} \leq C$。参数$s$一定程度上控制着分布的“宽度”。当$s$的值比较小的时候，我们可以得到：
+\begin{equation}
+	K(x_{i}, x_{j}) = \exp(\frac{-{\Vert x_{i} - x_{j} \Vert}^{2}}{s^2}) \to 0, \quad i \neq j
+\end{equation}
+
+这样在特征空间中，数据与数据之间的差别变得比较小。极端情况之下，任意交叉项的新的特征空间之中内积为0，异常数据与正常数据将无法被区分开，考虑到约束条件$\sum_{i=1}^{m}\alpha_{i} = 1$，这样计算出来的拉格朗日乘子$\alpha_{i}=1/m$，由于使用的是高斯核函数，那么最终的决策边界将会由一个个非常小的高斯分布加权组成。
+
+若是$s$比较大的时候：
+\begin{equation}
+K(x_{i}, x_{j}) = \exp(\frac{-{\Vert x_{i} - x_{j} \Vert}^{2}}{s^2}) \to 1, \quad i \neq j
+\end{equation}
+
+样本与样本之间在新的空间中的内积为1，同样异常样本与正常样本无法被区分开来，不过问题依然有解，并且SVDD问题的解在原始的输入空间将退化为球形。这点可以从核函数的泰勒展开看的出来，可以看出：
+\begin{align}
+	K(x_{i}, x_{j}) = & \exp(-{\Vert x_{i} - x_{j} \Vert}^{2}/s^{2}) \\
+	& = 1 - x_{i}^{2}/s^{2} - x_{j}^{2}/s^{2} + 2(x_{i}·x_{j})^{2}/s^{2} + ...
+\end{align}
+
+对于合适的$s$将会获得一个比较适当的决策边界，具体的变化情况参见后文中的OCSVM参数变化试验部分。
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{单类支持向量机}
+\emph{单类支持向量机(One class SVM)}，有时候又被叫做$\nu-SVC$，和SVDD非常类似。虽然二者形式上不尽相同，但是将会计算出类似的决策边界。单类支持向量机想要从数据中学习出来的决策边界，是距离\emph{原点(Origin)}最远的超平面。之所以超平面能够很好的区分出异常数据和正常数据，原因在于之前提到的，通过高斯核函数映射，数据在新的特征空间中分布在一个超球上，与大量的数据都不相似数据，将会距离正常数据的聚集非常远。因此，单类支持向量机希望学习出超平面满足：
+\begin{equation}
+	w · \boldsymbol{\Phi}(x_{i}) \geq \rho - \xi_{i}, \quad \xi_{i} \geq 0, \quad i = 1,...,m
+\end{equation}
+
+其中$w · \boldsymbol{\Phi}(x_{i})$是样本$\boldsymbol{\Phi}(x_{i})$到平面的带符号距离；$\xi_{i}$代表松弛变量，而$\rho$代表超平面到原点的距离。并且单类支持向量机判别新的数据$z$是否为异常数据的方式为：
+\begin{equation}
+	f_{\nu-SVC}(z;w,\rho) = I(w · \boldsymbol{\Phi}(z) \leq \rho)
+\end{equation}
+
+在优化上，单类支持向量机希望解决如下问题：
+\begin{align}
+	\label{Constrain}
+	\min_{w,b,\xi} &  \quad \frac{1}{2}{\Vert w \Vert}^{2} + \frac{1}{\nu m}\sum_{i=1}^{m}\xi_{i} - \rho\\
+	s.t. &  \quad w·\boldsymbol{\Phi}(x_{i}) \geq \rho - \xi_{i},\\
+	  {} & \quad \xi_{i} \geq 0, \quad i=1,...,m
+\end{align}
+
+其中，$\nu \in (0, 1]$的范围之内取值，松弛变量$\xi_{i}$被加入到优化目标用来惩罚优化函数。同时，我们还希望超平面离原点越远越好，所以$\rho$也被加入到优化目标当中去，因为希望$\rho$越大越好，那么对应的最小化问题就是最小化$-\rho$。对于这个优化问题，同样可以运用拉格朗日乘子法，得到拉格朗日函数：
+\begin{align}
+	 L(w, \xi, \rho, \alpha, \beta) = {} & \frac{1}{2}{\Vert w \Vert}^2 + \frac{1}{\nu m} \sum_{i=1}^{m}\xi_{i} - \rho \\
+	 {} & -\sum_{i=1}^{m} \alpha_{i}(w·\boldsymbol{\Phi}(x_{i}) - \rho + \xi_{i}) - \sum_{i=1}^{m}\beta_{i}\xi_{i}
+\end{align}
+
+同样，我们利用KKT条件可得：
+\begin{align}
+	& w = \sum_{i=1}^{m} \alpha_{i}\boldsymbol{\Phi}(x_{i}) \\
+	& \alpha_{i} = \frac{1}{\nu m} - \beta_{i} \leq \frac{1}{\nu m} \\
+	& \sum_{i=1}^{m} \alpha_{i} = 1
+\end{align}
+
+这样，代入KKT条件到原式子里，我们就可以得到对偶问题：
+\begin{align}
+	\min_{\alpha} &  \quad \frac{1}{2}\sum_{i=1}^{m} \sum_{j=1}^{m} \alpha_{i} \alpha_{j} K(x_{i}, x_{j})  \\
+	s.t. &  \quad 0 \leq \alpha_{i} \leq \frac{1}{\nu m},\\
+	{} & \quad \sum_{i=1}^{m} \alpha_{i} = 1, \quad i=1,...,m
+\end{align}
+
+这样，$\nu-SVC$问题就变成了标准的二次规划问题，我们可以通过解这个二次规划问题，获得$\nu-SVC$的参数。其中可以解出$\rho$为：
+\begin{equation}
+	\rho = (w·\boldsymbol{\Phi}(x_{i})) = \sum_{i=1}^{m} \alpha_{i} K(x_{i}, x_{j})
+\end{equation}
+
+同时我们应当注意到，参数$\nu$对于拉格朗日乘子$\alpha_{i}$的取值有较大的影响。直观上来说，当$\nu$趋近于0的时候，拉格朗日乘子的上界趋近于无穷大$+\infty$，优化问题(\ref{Constrain})中对离群点的惩罚被放大，那么单类支持向量机倾向于将所有样本视作正例；当$\nu$趋近于1的时候，我们可以看到对偶问题中。优化问题(\ref{Constrain})中对于松弛变量的约束条件几乎趋近于0，所以OCSVM倾向于认为所有的样本都为异常数据。$\nu-SVC$问题被证明与$SVDD$问题有着非常紧密的联系，事实上，文章证明SVDD与OCSVM在一定条件之下，将会取得一样的解。
+
+\section{OCSVM的决策边界}
+我们改造了$Scikit-Learn$官方提供的单类支持向量机的一个例子，以说明单类支持向量机的两个参数$\nu$与$s$对于单类支持向量机的决策边界会有什么样的影响。具体来说，我们通过\emph{numpy}中的高斯分布模块，在平面上生成了400个样本点，这些数据作为我们OCSVM的训练数据，也就是我们认为的正常数据；同时生成40个离群点作为测试集。在获得在训练集上训练好的OCSVM学习器以后，我们利用测试集进行测试，测试OCSVM对于异常数据的检测效果。同时，注意到我们这里使用到的高斯核函数的形式为：
+\begin{equation}
+	K(x_{i}, x_{j}) = \exp({-{\eta}{\Vert x_{i} - x_{j} \Vert}^{2}})
+\end{equation}
+
+其中$\eta = 1 / s^{2}$。首先，如之前所分析的一样，在$\nu$相同的情况下，当$\eta$的值取到非常小的时候，决策边界退化为二维平面上的近似圆形的边界；当$\eta$值取得非常大的时候，决策边界将成为高斯分布的线性组合，如下图所示：
+\begin{figure}[H]
+	\centering
+	\begin{tabular}{cc}
+		\includegraphics[width=0.40\linewidth]{..//Plots//etaChange_1.pdf}  & 
+		\includegraphics[width=0.40\linewidth]{..//Plots//etaChange_2.pdf} \\
+		(a) & (b)\\
+	\end{tabular}
+	\caption{(a)$\eta=50$的决策边界 (b)$\eta=0.00001$的决策边界}
+	\label{Fig:3}
+	\vspace{-0.5em}
+\end{figure}
+
+下图是$\nu$和$\eta$同时变化的时候，决策边界与异常检测效果变化的情况：
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.95\linewidth]{..//Plots//OCSVM.pdf}
+	\caption{$\nu$和$\eta$同时变化的情况}
+	\label{Fig:4}
+	\vspace{-0.5em}
+\end{figure}
+
+
+\iffalse
+\section{对轨迹数据进行异常检测}
+\begin{table}[H]
+	\centering
+	\label{table1}
+	\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}
+		\hline
+		Level & 5 & 7 & 10 & 20 & 30 & 40 & 50 & 70 & 100\\
+		\hline
+		TP & 0.53 & 2 & 157 & 3 & 0 & 0 & sales & low & 1\\
+		FN & 0.86 & 5 & 262 & 6 & 0 & 0 & sales & medium & 1\\
+		\hline
+	\end{tabular}
+	\caption{人力资源数据集前4行}
+\end{table}
+\fi
+\end{document}

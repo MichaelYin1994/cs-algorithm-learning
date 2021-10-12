@@ -1,0 +1,224 @@
+% 设置编码，编码为UTF-8编码，字号大小12pt
+\documentclass[UTF8, 12pt]{ctexart}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{titlesec}{\tiny}
+\usepackage{amsmath}
+\usepackage{authblk}
+% 定义超链接的颜色
+\usepackage[colorlinks, linkcolor=blue, citecolor=blue]{hyperref}
+
+% 标题左对齐
+%\CTEXsetup[format={\Large\bfseries}]{section}
+
+% 定义
+\newtheorem{theorem}{Theorem}[section]
+% 控制图片的位置，让图片紧紧的跟住文字，只需写\begin{figure}[H]
+\usepackage{float}
+% 使用文献引用
+\usepackage{cite}
+% 使用算法排版模块
+\usepackage{algorithm}  
+\usepackage{algorithmic}
+\renewcommand{\algorithmicrequire}{\textbf{输入:}}  
+\renewcommand{\algorithmicensure}{\textbf{输出:}} 
+% 设置文本格式，文本间距等，具体参考如下：
+% left=2cm, right=2cm, top=2.5cm,bottom=1.5cm
+\geometry{a4paper, centering, scale=0.8}
+\newtheorem{thm}{定义}
+\renewcommand{\baselinestretch}{1.3}
+
+% 定义编程语言
+\usepackage{listings}
+\usepackage{color}
+\usepackage{fontspec}
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+\definecolor{light-gray}{gray}{0.95}
+
+\lstset{frame=tb,
+		language=Python,
+		aboveskip=3mm,
+		belowskip=1mm,
+		showstringspaces=false,
+		columns=flexible,
+		basicstyle=\small\ttfamily,
+		numbers=left,
+		numberstyle=\small\color{gray},
+		keywordstyle=\color{blue},
+		commentstyle=\color{dkgreen},
+		stringstyle=\color{mauve},
+		breaklines=true,
+		breakatwhitespace=true,
+		tabsize=4,
+		backgroundcolor=\color{light-gray}
+}
+
+\begin{document}
+
+\title{\heiti \Huge{Locally Weighted Ensemble Clustering}}
+\author{\kaishu 尹卓 \\ \href{mailto:zhuoyin94@163.com}{zhuoyin94@163.com}}
+\date{\today}
+\maketitle
+
+% 增加目录
+\tableofcontents
+\newpage
+	
+\section{引言}
+对于数据的聚类是一项基础的，并且具有挑战性的工作，其目的主要是为了发现数据中的潜在结构。由于不同的聚类算法产生的结果也许可以反映数据中结构的不同方面，因此为了利用不同聚类算法产生的结果，从而产生更加稳定鲁棒的聚类，集成聚类的算法开始流行起来。集成聚类致力于将不同的聚类算法产生的聚类结果结合，从而产生更加鲁棒的聚类结果。在集成聚类里，每一个聚类算法产生的结果被称为\emph{基聚类(Base clustering)}，而基聚类包含许多子聚类，最终的集成结果由基聚类集成而产生。
+
+在集成聚类中，基聚类的质量对于最终的集成聚类质量有着重要的影响，低质量的基聚类将导致集成聚类的结果失去鲁棒性。现阶段的无监督集成聚类算法在聚类过程中，将每一组基聚类的结果视为具有一致的准确性与鲁棒性，因此在集成的过程中，每一组基聚类具有一样的权重，因此使得集成聚类的最终结果由于一些低质基聚类的存在从而也质量下降。为了解决这样的问题，文献\cite{huang2017locally}提出了基于熵的集成聚类策略，在聚类集成的过程中根据熵判据考虑到了基聚类的可信度，从而对数据进行聚类。
+
+\section{基于Co-Association矩阵的集成聚类策略}
+	对于聚类的集成策略一般分为四种\cite{zhou2012ensemble}：
+	\begin{enumerate}
+		\item 基于相似性度量的集成策略(Similarity-Based Methods)。该策略将各个基聚类的信息表示成为矩阵形式，随后将各个矩阵形式的基聚类信息进行平均或者加权平均，获得平均的聚类信息。
+		\item 基于图的集成策略(Graph-Based Methods)。该策略将基聚类的信息表示成为无向图，然后采用基于图的分割的算法对集成结果进行聚类。
+		\item 基于类标签对其的策略(Relabeling-Based Methods)。该策略针对基聚类的类标签进行\emph{对齐(Aligned)}之后再进行集成。
+		\item 基于迁移的策略(Transformation-Based Methods)。基于迁移的聚类算法将基聚类视为是数据的另外一种表示(Features for representations)，随后使用元学习器(Meta-clustering)对新的表示进行聚类。
+	\end{enumerate}
+	文献\cite{huang2017locally}采用的基于联合相关矩阵(Co-Association Matrix，以下简称CA矩阵)的方式进行聚类，原理上类似于第一种基于相似度的聚类方式。首先，当获取到数据集合$\{X_{i}\}_{i=1}^{M}$之后，可以针对数据采用不同的聚类算法，生成不同基聚类结果。假设生成了$N$组基聚类结果，记做：$\{\Omega_{i}\}_{i=1}^{N}$，其中$\Omega_{i}$代表第$i$组的基聚类的结果，而$\Omega_{i}$包含了$K_{i}$个聚类。并且，设$cls_{i}(X_{j})\in\{1, 2, .., K_{i}\}$是第$i$组基聚类结果中第$j$个样本的聚类结果。而$\Omega_{i}^{n}$代表第$i$组聚类方法中第$n$个聚类的样本的集合。
+	记CA矩阵为$S=\{s_{ij}\}$，则定义CA矩阵的元素为：
+	\begin{equation}
+		s_{ij} = \frac{1}{N}\sum_{n=1}^{N}\delta(cls_{n}(X_{i}), cls_{n}(X_{j}))
+	\end{equation}
+	其中定义$\delta(a, b)$函数为：
+	\begin{equation}
+	\delta(a, b) = 
+		\begin{cases}
+			1; & a = b \\
+			0; & a \neq b 
+		\end{cases}
+	\end{equation}
+	这样可以获得集成了基聚类结果的CA矩阵，对于该矩阵而言，可以利用基于图的聚类算法如\emph{谱聚类}，或者是基于树的聚类算法如\emph{凝聚层次聚类}进行聚类，获取最终的聚类结果。
+	
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.7\linewidth]{..//Plots//CA_matrix.pdf}
+		\caption{联合相关矩阵的构造(Co-Association Matrix)}
+		\label{caMat}
+		\vspace{-0.5em}
+	\end{figure}
+	对于CA矩阵的形成过程，可以参考图\ref{caMat}。图\ref{caMat}中左图包含两组基聚类的结果，左边有两个聚类，右边有三个聚类，构造的CA矩阵如右图所示。
+	
+\section{基于熵的局部加权策略}
+	对于上一节构造CA矩阵的过程，存在一个潜在的基本假设：即各个基聚类具有相同的质量。事实上，由于随机种子不同，或者是聚类算法不同，形成的基聚类的质量也是参差不齐，因此有必要在CA矩阵形成的过程中对基聚类进行加权。文章\cite{huang2017locally}采用了基于熵的加权策略。具体来说，第$i$组基聚类结果$\Omega_{i}$的第$l$个聚类集合$\Omega_{i}^{l}$对于第$r$组基聚类结果$\Omega_{r}$的熵被定义为：
+	\begin{equation}
+		H^{r}(\Omega_{i}^{l}) = - \sum_{m=1}^{K_{r}} {P(\Omega_{i}^{l}, \Omega_{i}^{m}) \log_{2}(P(\Omega_{i}^{l}, \Omega_{i}^{m}))}
+	\end{equation}
+	其中$K_{r}$是基聚类$\Omega_{r}$包含的聚类个数，而$P(\Omega_{i}^{l}, \Omega_{i}^{m})$被定义为：
+	\begin{equation}
+		P(\Omega_{i}^{l}, \Omega_{i}^{m}) = \frac{|\Omega_{i}^{l} \cap \Omega_{r}^{m}| }{|\Omega_{i}^{l}|}
+	\end{equation}
+	代表$\Omega_{i}^{l}$集合与$\Omega_{r}^{m}$集合的相同的样本的个数除以$\Omega_{i}^{l}$集合大小。$\Omega_{i}^{l}$对于整组聚类结果$\{\Omega_{i}\}_{i=1}^{N}$的熵为：
+	\begin{equation}
+		H(\Omega_{i}^{l}) = \sum_{r=1}^{N}H^{r}(\Omega_{i}^{l})
+	\end{equation}
+	这样，第$i$组基聚类的第$l$个聚类结果的信任程度由其他的基聚类的结果所确定：若是第$l$个聚类集合与其他每一组基聚类的结果的熵均为0，则说明$\Omega_{i}^{l}$在每一组基聚类中都能保持一致，也说明该聚类的稳定性与可靠性。同时，在获取了熵$H(\Omega_{i}^{l})$之后，通常会对熵进行一个指数变换：
+	\begin{equation}
+		ECI(\Omega_{i}^{l}) = e^{-\frac{H(\Omega_{i}^{l})}{\theta * N}}
+	\end{equation}
+	其中$\theta$为放缩因子，控制指数分布的范围，$ECI(\Omega_{i}^{l}) \in [0, 1]$可以看做第$i$组基聚类的第$l$个聚类集合的权重，因此可以定义\emph{加权联合相关矩阵(Weighted Co-Association Matrix)}，意即$\hat{S}=\{\hat{s}_{ij}\}$为：
+	\begin{equation}
+		\hat{s}_{ij} = \frac{1}{N} \sum_{n=1}^{N} w_{n}\delta(cls_{n}(X_{i}), cls_{n}(X_{j}))
+	\end{equation}
+	其中权重$w_{n}$的定义为：
+	\begin{equation}
+		w_{n} = ECI(cls_{n}(X_{i}))
+	\end{equation}
+	权重$w_{n}$代表第$n$个基聚类中的$X_{i}$所属的类标签的ECI值。
+	
+\section{源码分析}
+\begin{lstlisting}
+def get_entropy(basePartition={}, sampleNums=None, theta=0.5):
+	'''
+	依据文献[1]提出的算法，计算每一组基聚类的每一个聚类的熵，并返回计算结果。
+	
+	
+	Parameters:
+	-----------
+	basePartition: dict-like
+	基聚类结果。键(key)代表基聚类的编号，值(value)代表基聚类的聚类结果。
+	
+	sampleNums: int-like
+	聚类样本的个数。
+	
+	theta: int-like
+	控制熵分布的范围。
+	
+	H: dict-like
+	保存计算出来的每一个聚类熵的值。
+	
+	ECI: dict-like
+	保存计算出来的每一个聚类的ECI值。
+	-----------
+	References:
+	[1] Huang D, Wang C D, Lai J H. Locally weighted ensemble clustering[J]. IEEE transactions on cybernetics, 2017, 48(5): 1460-1473.
+	'''
+
+	# 异常输入检测，若无基聚类结果，返回None。
+	if len(basePartition) == 0:
+		return None
+
+	# 检查每一个基聚类具有多少种聚类标签，并存入uniqueLabels字典
+	# uniqueLabels字典的键是基聚类编号，值是排序后的不同的标签列表
+	# nodeIndex
+	uniqueLabels = {}
+	for key in basePartition.keys():
+		uniqueLabels[key] = np.sort(np.unique(basePartition[key]))
+	nodeIndex = np.arange(0, sampleNums)
+
+	# 计算每一组基聚类的每一个聚类的熵
+	H, ECI, partitionIndexSorted = {}, {}, sorted(list(basePartition.keys()))
+	
+	# 扫描每一个basePartition
+	for basePartitionLabel in partitionIndexSorted:
+		H[basePartitionLabel], ECI[basePartitionLabel] = [], []
+
+		# 扫描该basePartition的每一个类标签
+		for clusterLabel in uniqueLabels[basePartitionLabel]:
+
+			# partitionEntropy保存该cluster与每一个partition的熵
+			partitionEntropy = []
+
+			# 先找到所有属于clusterLabel的样本的编号
+			clusterNodes = nodeIndex[clusterLabel == basePartition[basePartitionLabel]]
+			print("No.{} partition, cluster {}, Total clusters {}, samples {}".format(basePartitionLabel, clusterLabel, uniqueLabels[basePartitionLabel].max(), len(clusterNodes)))
+
+			# 扫描每一个basePartition
+			for i in partitionIndexSorted:
+				# clusterLabel与该partition的每一个cluter的熵
+				entropyEachCluster = []
+				for j in uniqueLabels[i]:
+					# 找到该cluter具有的样本的编号
+					# WARNING:此处可被优化，可在开始前使用一个
+					# dict记录每一个聚类的样本编号
+					clusterNodesCompare = nodeIndex[j == basePartition[i]]
+
+					# 计算cluterLabel与该cluster的样本的相交的个数，并计算比例
+					# WARNING:此处也能被优化，可用一矩阵记录cluterLabel与
+					# 第i个cluster的交集的个数，避免重复计算
+					intersectNodes = np.intersect1d(clusterNodes, clusterNodesCompare)
+					tmp = len(intersectNodes) / len(clusterNodes)
+
+					# 记录与该partition的每一个聚类的熵
+					if tmp == 0:
+						continue
+					else:
+						entropyEachCluster.append(-tmp * np.log2(tmp))
+				partitionEntropy.append(sum(entropyEachCluster))
+			# 计算cluterLabel聚类的熵
+			H[basePartitionLabel].append(sum(partitionEntropy))
+			ECI[basePartitionLabel].append(np.exp(-sum(partitionEntropy)/(theta * sampleNums)))
+	return H, ECI
+\end{lstlisting}
+
+	\section{总结}
+	基于熵的集成聚类策略，对于基聚类的子聚类的加权过程中自然的考虑了子聚类的重要程度，是一个很好的策略。但是值得思考的是，整个算法并没有考虑当存在噪声样本的时候，如何对噪声样本进行处理，可以从这方面思考改进。
+	
+	
+	\bibliographystyle{plain}  
+	\bibliography{EC_ref}  
+\end{document}

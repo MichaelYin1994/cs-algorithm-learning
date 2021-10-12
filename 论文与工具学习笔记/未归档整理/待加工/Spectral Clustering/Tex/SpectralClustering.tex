@@ -1,0 +1,448 @@
+% 设置编码，编码为UTF-8编码，字号大小12pt
+\documentclass[UTF8, 12pt]{ctexart}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{titlesec}{\tiny}
+\usepackage{amsmath}
+\usepackage{authblk}
+% 定义超链接的颜色
+\usepackage[colorlinks, linkcolor=blue, citecolor=blue]{hyperref}
+
+% 标题左对齐
+%\CTEXsetup[format={\Large\bfseries}]{section}
+
+% 定义
+\newtheorem{theorem}{Theorem}[section]
+% 控制图片的位置，让图片紧紧的跟住文字，只需写\begin{figure}[H]
+\usepackage{float}
+% 使用文献引用
+\usepackage{cite}
+% 使用算法排版模块
+\usepackage{algorithm}  
+\usepackage{algorithmic}
+\renewcommand{\algorithmicrequire}{\textbf{输入:}}  
+\renewcommand{\algorithmicensure}{\textbf{输出:}} 
+% 设置文本格式，文本间距等，具体参考如下：
+% left=2cm, right=2cm, top=2.5cm,bottom=1.5cm
+\geometry{a4paper, centering, scale=0.8}
+\newtheorem{thm}{定义}
+\renewcommand{\baselinestretch}{1.3}
+
+% 定义编程语言
+\usepackage{listings}
+\usepackage{color}
+\usepackage{fontspec}
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+\definecolor{light-gray}{gray}{0.95}
+
+\lstset{frame=tb,
+	language=Python,
+	aboveskip=3mm,
+	belowskip=1mm,
+	showstringspaces=false,
+	columns=flexible,
+	basicstyle=\small\ttfamily,
+	numbers=left,
+	numberstyle=\small\color{gray},
+	keywordstyle=\color{blue},
+	commentstyle=\color{dkgreen},
+	stringstyle=\color{mauve},
+	breaklines=true,
+	breakatwhitespace=true,
+	tabsize=4,
+	backgroundcolor=\color{light-gray}
+}
+
+
+\begin{document}
+	\title{\heiti \Huge{Locally Weighted Ensemble Clustering}}
+\author{\kaishu 尹卓 \\ \href{mailto:zhuoyin94@163.com}{zhuoyin94@163.com}}
+\date{\today}
+\maketitle
+
+% 增加目录
+\tableofcontents
+\newpage
+\begin{abstract}
+	谱聚类算法是最近十几年来新兴的一种现代聚类算法。它简单而易于使用：只需要一般的线性代数计算软件；并且谱聚类相比传统的聚类方法，诸如K-Means这些算法效果要好的多。但是谱聚类虽然计算简单，原理上却显得有些难以理解。这篇文档简要的介绍了一下谱聚类算法的基本原理。具体来说，首先我们先介绍了传统的K-Means聚类算法；其次我们介绍一下图理论的基本知识以及拉普拉斯矩阵的性质；接着我们介绍一下谱聚类中的两种切割方式的原理；最后我们给出了谱聚类的应用的小例子。
+\end{abstract}
+
+\section{K-means聚类算法的简要介绍}
+
+聚类算法是数据分析当中用的最为广泛的技巧之一，它的用途包括但不限于统计分析，计算机科学，生命科学以及社会科学等等。事实上，任何处理大规模数据的场景之下，人们都会先尝试用聚类算法来对他们的数据产生一个“第一印象”，并尝试着去识别出群体中“相似的行为”[1]。聚类算法尝试着通过将不带标记的样本聚成一个个的聚类，来寻找样本数据内在的结构。[2]一次好的聚类会使得每个聚类内部样本的相似性最大而聚类与聚类之间的相似性最小化。首先，我们先来介绍一下K-means聚类算法。K-means算法的流程如下所示:
+
+\emph{Step 1：}从数据集中随机选取K个样本作为初始聚类中心$C=\{c_1,...,c_k\}$。
+
+\emph{Step 2：}针对数据集中的每一个样本$x_i$，计算它到每一个聚类中心的距离，选择距离最近的聚类心的类标号作为其类别。
+
+\emph{Step 3：}更新聚类中心：
+\begin{equation}
+{c_i} = \frac{1}{{|{c_i}|}}\sum\limits_{x \in {c_i}} x
+\end{equation}
+其中$|{c_i}|$代表的是属于这个聚类的样本的个数。
+
+\emph{Step 4：}重复Step 2和Step 3，直到收敛。
+
+K-means聚类是最常见的聚类算法之一，但是存在一些缺点，这里不再赘述。目前以上介绍的是最常见的K-means算法，后续改进有有K-means++算法，是目前比较常用的K-means算法的实现；同时，K-means算法也被经常用作其他迭代的聚类算法的初值的初始化上去，例如\emph{高斯混合模型(Gaussian Mixture Model)}。
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{图论基本知识}
+\subsection{邻接矩阵，度矩阵}
+在开始详细介绍谱聚类算法之前，这里先简要介绍一下图论的基本知识。考虑一组样本点${x_1},...{x_n}$，并且已经有某种样本点之间的相似性度量函数计算了每对样本点之间的相似性${s_{ij}} \ge 0$，这里谈论的谱聚类的目的和其他的聚类算法没有什么区别，也是希望将数据划分为一些聚类，同一聚类内部的数据点与数据点之间的相似性高；而类与类之间的数据点的相似性低。一种自然的表示数据之间相似性的方式，被称为\emph{相似图(Similarity Graph)}。对于一个图$G=(V,E)$，我们一般用点的集合$V$和边的集合$E$来描图。在图论中，\emph{点集(Vertices)}里的${v_i}$也就相当于数据点${x_i}$。若是$x_{i}$与$x_{j}$之间的相似性${s_{ij}} \ge 0$或者是大于等于某一特定的值，那么给这两点之间的边被赋予权值${w_{ij}}$。有了以上定义之后，可以从图论的角度来看待聚类问题：我们所要做的，是将图分割为不同的子图，使得连接不同的子图的边的权值特别小，而相同的图内的边的权值特别大。下面我们介绍一些图论相关的基本符号。
+
+我们定义$G=(V,E)$是一个无向图，其中点的集合$V = \{ {v_1},...{v_n}\}$，这里使用的是有权图，也就是说点与点之间连接的边的权值${w_{ij}}$都是大于等于0的。${w_{ij}}$组成的矩阵$W$被称为\emph{邻接矩阵(Adjacency Matrix)}，其中 ${w_{ij}} = 0$ 代表了点与点之间连接的权值是0，也就是不相连。由于$G$是无向图，那么可知邻接矩阵$W$是一个对称矩阵，也就是说${w_{ij}} = {w_{ji}}$ 。点${v_i} \in V$的\emph{度(Degree)}被定义为:
+\begin{equation}
+	{d_i} = \sum\limits_{j = 1}^n {{w_{ij}}}
+\end{equation}
+同时我们定义\emph{度矩阵(Degree Matrix)}为$D$，对于度矩阵其主对角线上的值为${d_1},...{d_n}$。考虑到点的一个子集$A \in V$，我们定义$A$的补集$V/A$为$\bar A$。定义指示向量$f = {({f_1},...,{f_n})^T}$，其中若是$v_i \in A$则$f_i=1$，若是说${v_i} \ne A$则$f_i=0$。我们定义两种度量集合$A$的大小的方式：
+\begin{align}
+	& |A|: = the\,number\,of\,vertices\,in\,A \\
+	& vol(A): = \sum\limits_{i \in A} {{d_i}}
+\end{align}
+
+特别的，若是子图$A \in V$的任意两个点都能都能通过边相互连接，并且各个边及其连接的中间点都位于$A$之内，我们称$A$为\emph{连通(Connected)}；若是子图$A$与其补集$\bar A$之间没有边的相连，则将$A$称为一个\emph{连通分支(Connected Component)}。我们定义对于$V$任意两个子图的点的集合$A$与$B$两者之间的相似性为：
+\begin{equation}
+	W(A,B) = \sum\limits_{i \in A,j \in B} {{w_{ij}}}
+\end{equation}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{构建邻接矩阵}
+上一节中我们定义了邻接矩阵$W$，邻接矩阵$W$的每一个元素的值${w_{ij}}$表示两个点之间边的权值。图论中的权值，可以被视作欧式空间中的距离。这里我们给出三种构建$W$的方式:
+\begin{enumerate}
+	\item \textbf{$\varepsilon$领域法：}对于这种方法，我们设置一个距离的阈值$\varepsilon$。然后用欧式距离度量${s_{ij}}$来度量$x_i$与$x_j$之间的相近程度。根据${s_{ij}}$与$\varepsilon$的大小关系，我们定义：
+	\begin{equation}
+	{w_{ij}} = \begin{cases}
+	0, & \text{if } {w_{ij}} \le \varepsilon; \\
+	\varepsilon, & \text{if } {w_{ij}} > \varepsilon
+	\end{cases}
+	\end{equation}
+	这里，由于大于某个阈值之后，${w_{ij}}$的值取的是一个固定的值，所以这种图一般又被认为是\emph{无权图(Unweighted Graph)}。
+	
+	\item \textbf{$k$近邻法：}在这里，当$v_j$在$v_i$的$k$领域中的时候,我们将$v_i$与$v_j$当$v_j$用边进行连接（这里定义距离$v_i$距离最近的前$k$个点为$v_i$的$k$邻域）。但是这种定义会导致有向图的产生，也是就说邻接矩阵非对称阵，因为$k$近邻的定义本身就是不对称的。有两种方式来使得这样的图成为无向图。第一种方式是我们单纯的忽略边的方向，也就是说只要$v_i$与$v_j$有一方在对方的领域内，我们便认为他们是相互连接的，这种方式通常被称为\emph{K近邻图(K-nearest Neighbor Graph)}；第二种方式是如果$v_i$与$v_j$都在对方的邻域内，我们再将他们连接起来，被称为\emph{K互近邻图(Mutual K-nearest Neighbor Graph)}。连接之后，再对边赋予权值。
+	
+	\item \textbf{全连通图：}这种图所有点与点之间边的权值都是大于$0$的，全连通图因此得名。可以用不同的方式来定义边的权重，最常用的是高斯核函数：
+	\begin{equation}
+	{w_{ij}} = \exp ( - \frac{{\Vert {x_i} - {x_j} \Vert {^2}}}{{2{\sigma ^2}}})
+	\end{equation}
+\end{enumerate}
+
+以上便是最为常见的构建相似性矩阵的方法。当然对于问题的不同还有其他的方法来构建相似性矩阵，例如在轨迹聚类当中，轨迹与轨迹之间的相似性使用\emph{最常公共子序列(Longest Common Subsequence)}表示，所以应当对具体问题具体来分析。
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{拉普拉斯矩阵及其性质}
+和谱聚类密切相关的工具除了上面提到的图论的基本知识，还有所谓的\emph{拉普拉斯矩阵(Laplacian Matrix)}。拉普拉斯矩阵的定义有很多种，引用文章[3]中的一句话:
+\begin{quote}
+	\emph{“Usually, every author just call his matrix the graph Laplacian.”}
+\end{quote}
+
+这里我们给出本文中的拉普拉斯矩阵的定义以及一些约定：假设图$G$是一个无向有权图，权矩阵$W$是一个对称阵，也就是说${w_{ij}}={w_{ji}}$。对于矩阵的特征值和特征向量，我们都认为特征值总是以升序排列。当我们提到“前$k$个特征向量”的时候，我们指的是对应于前$k$个最小特征值的特征向量。接下来我们将结合具体实例，来详细阐述拉普拉斯矩阵的一些性质。我们如下定义\emph{拉普拉斯矩阵(Laplacian Matrix)}：
+\begin{equation}
+	L = D - W
+\end{equation}
+
+\begin{figure}[H]
+	\centering
+	\begin{tabular}{ccc}
+		\includegraphics[width=0.23\linewidth]{..//Plots//graph_2.pdf}  & 
+		\includegraphics[width=0.30\linewidth]{..//Plots//graph_1.pdf}  \\ 
+		(a) & (b)\\
+	\end{tabular}
+	\caption{不同的图}
+	\label{Fig:1}
+	\vspace{-0.5em}
+\end{figure}
+
+如图\ref{Fig:1}中的$a$图所示，对于这个图来说：$G=(V,E)$，其中$V=\{1,2,3,4\}$，而$E=\{\{1,2\},\{1,3\},\{1,4\},\{3,4\}\}$。这时候，对应的\emph{邻接矩阵(Adjacency Matrix)}，\emph{度矩阵(Degree Matrix)}和\emph{拉普拉斯矩阵(Laplacian Matrix)}分别为如下：
+
+\begin{equation}
+W = \begin{bmatrix}
+0 & 1 & 1 & 1 \\
+1 & 0 & 0 & 0 \\
+1 & 0 & 0 & 1 \\
+1 & 0 & 1 & 0
+\end{bmatrix}\quad
+D = \begin{bmatrix}
+3 & 0 & 0 & 0 \\
+0 & 1 & 0 & 0 \\
+0 & 0 & 2 & 0 \\
+0 & 0 & 0 & 2
+\end{bmatrix} \quad
+L = \begin{bmatrix}
+3 & -1 & -1 & -1 \\
+-1 & 1 & 0 & 0 \\
+-1 & 0 & 2 & -1 \\
+-1 & 0 & -1 & 2
+\end{bmatrix} \quad
+\end{equation}
+
+注意到邻接矩阵$W$的主对角线上是没有值的，因为自身与自身没有边的连接。下面给出拉普拉斯矩阵的几个重要性质：
+\begin{thm}[拉普拉斯矩阵的性质]
+	拉普拉斯矩阵满足如下的性质：
+	
+	1. 对于任意的$f \in {R^n}$，都有:
+	\begin{equation}
+	{f^T}Lf = \frac{1}{2}\sum\limits_{i,j = 1}^n {{w_{ij}}{{({f_i} - {f_j})}^2}}
+	\label{proof}
+	\end{equation}
+	
+	2. 矩阵$L$是一个对称矩阵，并且是一个半正定矩阵。
+	
+	3. L矩阵最小的特征值是0，对应的特征向量是${[1,...,1]^T}$。
+	
+	4. L有n个非负的实数特征值$0 = {\lambda _1} \le {\lambda _2} \le ... \le {\lambda _n}$。
+\end{thm}
+
+对于性质1，借助$d_i$的定义，可以证明：
+\begin{align}
+	{f^T}Lf &  = {f^T}Df - {f^T}Wf = \sum\limits_{i = 1}^n {{d_i}f_i^2}  - \sum\limits_{i,j = 1}^n {{f_i}{f_j}{w_{ij}}} \\
+								  & = \frac{1}{2}(\sum\limits_{i = 1}^n {{d_i}f_{_i}^2 - 2\sum\limits_{i,j = 1}^n {{f_i}{f_j}{w_{ij}} + \sum\limits_{j = 1}^n {{d_j}f_j^2} } } )\\
+								  & = \frac{1}{2}\sum\limits_{i,j = 1}^n {{w_{ij}}{{({f_i} - {f_j})}^2}} 
+\end{align}
+对于性质2，对称性可以很容易导出，而半正定的性质可以由性质1导出：由于邻接矩阵$W$的非负性，我们可以推导出${f^T}Lf \ge 0$，也就是拉普拉斯矩阵的顺序主子式都大于等于0，所以L半正定。对于性质3，将向量${[1,...,1]^T}$代入求解便可以得到。对于性质4，由半正定的矩阵的性质：半正定矩阵的特征值必不为负。接下来我们给出另外的拉普拉斯矩阵比较重要的性质：
+
+\begin{thm}[连通子图的个数与拉普拉斯矩阵的特征值]
+	对于无向图$G$，并且$G$中的边具有非负的权值，拉普拉斯矩阵特征值$0$的重数$k$等于图中连通件$A_1,...,A_k$的个数。
+\end{thm}
+
+对于性质2，证明如下：首先考虑全连通的情况，即是$k=1$时的情况。当$k=1$时，借助拉普拉斯矩阵的性质，可知$0$是图的最小特征值，并且借助式(\ref{proof})，我们知道：
+\begin{equation}
+	0 = {f^T}Lf = \frac{1}{2}\sum\limits_{i,j = 1}^n {{w_{ij}}{{({f_i} - {f_j})}^2}}
+\end{equation}
+由于$w_{ij} \ge 0$，那么上式值为$0$，自然我们指示向量的每一个元素会相等，都为$1$.
+
+当我们考虑有$k$个连通子图的情况的时候，我们假设每一个点被它属于的子图的顺序给排列好了，那么我们的拉普拉斯矩阵也就变成了如下的形式：
+\begin{equation}
+	L = 
+	\begin{pmatrix}
+	L_1 &  &  \\
+	& \ddots & \\
+	& & L_k
+	\end{pmatrix}
+\end{equation}
+考虑如上的分块矩阵，我们已知分块矩阵的特征值等于每一分块的特征值的并集，那么考虑每一个子块的矩阵都代表一个连通图，借助性质1可知每一个子块都会有一个0特征值，立得$L$矩阵具有$k$个0特征值。
+
+\section{埃尔米特矩阵与瑞利商}
+\subsection{埃尔米特矩阵简要介绍}
+对称矩阵是目前应用最广泛的特殊形式的矩阵，在继续介绍谱聚类之前，我们需要补充一下一些与对称矩阵相关的知识。这里我们简要介绍一下一种特殊的复矩阵，这些矩阵也被称为\emph{埃尔米特矩阵(Hermitian Matrix)}或者\emph{共轭对称阵}。在实对称矩阵中，对于矩阵$A$的转置我们写为$A^T$，在复矩阵中的转置我们叫做共轭转置，不同于实对称矩阵，复矩阵的转置一般表示为$A^{H}$。例如：
+\begin{equation}
+A = \begin{bmatrix}
+1 & 2-3i \\
+0 & 1+i
+\end{bmatrix}
+\end{equation}
+
+$A$矩阵的共轭转置我们写作：
+\begin{equation}
+A^H = \begin{bmatrix}
+1 & 0 \\
+2+3i & 1-i
+\end{bmatrix}
+\end{equation}
+
+若是$A^{H} = A$，那么我们将这样的复矩阵称为\emph{埃尔米特矩阵(Hermitian Matrix)}，下面是一个典型埃尔米特矩阵：
+\begin{equation}
+A^H = \begin{bmatrix}
+2 & 1+i & 3i \\
+1-i & 0 & 2+2i \\
+-3i & 2-2i & 5
+\end{bmatrix}
+\end{equation}
+
+注意到，埃尔米特矩阵的主对角线上的元素一定是实数，非主对角线上的元素是一组共轭复数。很明显，实对称矩阵是埃尔米特矩阵的特殊形式。接下来我们简要介绍一下埃尔米特矩阵的几个性质，这对于我们后面的谱聚类算法至关重要。
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{埃尔米特矩阵的性质}
+\begin{thm}[埃尔米特矩阵的性质]埃尔米特矩阵满足如下的性质：
+	
+	1. 若$A$矩阵是埃尔米特矩阵，那么对于任意向量$x \in C^n$，${x^H}A{x} \in R$。
+	
+	2. 埃尔米特矩阵的特征值全为实数。
+	
+	3. 埃尔米特矩阵不同特征值对应的特征向量必正交。
+	
+	4. 埃尔米特矩阵特征值的代数重数等于几何重数。
+\end{thm}
+
+第一条性质的证明可以从这个角度来看，${x^H}A{x}$的值可以看做一个矩阵，但是只包含一个元素。那么我们考虑如下的情况：
+\begin{equation}
+({x^H}A{x})^H = {x^H}A{x}
+\end{equation}
+也就是说，矩阵${x^H}A{x}$与其共轭相等，那么必然主对角线上元素是实数，立得性质。注意，这条性质是充分必要条件：也就是说对于任意$x \in C^n$，若是${x^H}A{x}$是实数，那么说明矩阵$A$是埃尔米特矩阵，证明从略，可以参考资料[4]。
+
+证明性质2我们可以设特征方程$Ax = \lambda x$，等号两边同时乘以$x^H$，便有${x^H}A{x}=\lambda {x^H}x$由性质1我们可知${x^H}A{x}$是实数，右边的${x^H}{x}$为向量$x$的模的平方和，也一定为一实数，所以得证。
+
+对于性质3，设埃尔米特矩阵$A$有不同的特征值$\lambda$与$\mu$，对应的特征向量分别为$x$与$y$。在$Ax=\lambda x$同时左乘$y^H$，便有:
+\begin{equation}
+{y^H}A{x}= \lambda {y^H}x
+\end{equation}
+在${y^H}{A^H}=\mu {y^H}$同时右乘$x$，便有：
+\begin{equation}
+{y^H}{A^H}x = \mu {y^H}	x
+\end{equation}
+由${A^H} = A$我们可知：
+\begin{equation}
+\lambda {y^H}x = \mu {y^H}x
+\end{equation}
+但是已知$\lambda \ne \mu$，那么必定有${y^H}x=0$成立，也就是$x$与$y$正交。
+
+矩阵的\emph{代数重数(Algebraic Multiplicity)}定义为矩阵相同特征值的个数，\emph{几何重数(Geometric Multiplicity)}被定义为重特征值对应的线性无关的向量的个数。若是代数重数等于几何重数，那么矩阵可以对角化；若是二者不相等，则矩阵不能对角化，性质证明从略，参见资料[4]。由这个性质，我们知道埃尔米特矩阵一定可以正交对角化。即可以找到一个可逆矩阵$U$，满足${U^H}U=I$，且$U^H=U$，使得$A=U^{H}{\Lambda }U$，其中$\Lambda$是矩阵$A$的特征值矩阵，矩阵$U$被叫做\emph{酉矩阵(Unitary Matrix)}。
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{埃尔米特矩阵特征值范围的界定}
+设$A$矩阵为$n*n$的埃尔米特矩阵，$x \in C^{n}$为任意向量，我们假设$A$矩阵的特征值由小到大排列，也就是说：${\lambda _1} \le {\lambda _2} \le ... \le {\lambda _n}$。那么有：
+
+\begin{thm}[Rayleigh商与Rayleigh定理]我们定义Rayleigh quotient为：
+	\begin{equation}
+	\frac{{{x^H}Ax}}{{{x^H}x}}
+	\end{equation}
+	
+	并且，我们可知Rayleigh quotient的上下界为：
+	\begin{equation}
+	\mathop {\max }\limits_{x \ne 0} \frac{{{x^H}Ax}}{{{x^H}x}} = {\lambda _n}
+	\end{equation}
+	\begin{equation}
+	\mathop {\min }\limits_{x \ne 0} \frac{{{x^H}Ax}}{{{x^H}x}} = {\lambda _1}
+	\end{equation}
+	这个定理被叫做Rayleigh定理。
+\end{thm}
+
+Rayleigh定理的证明需要使用到埃尔米特矩阵的一个重要性质。埃尔米特矩阵是可以对角化的，等价于一定能找到一个矩阵$U$，并且$U^{-1}=U^{H}$，使得$A = U \Lambda U^{H}$成立，其中$\Lambda  = diag({\lambda _1},...,{\lambda _n})$代表的是对角阵，$U = [u_1, u_2,..., u_n]$的列向量代表特征向量。我们假设矩阵的特征值已经按照从小到大进行了排列，也就是${\lambda _1} \le {\lambda _2} \le ... \le {\lambda _n}$。令$z = U^{H}x$，便有：
+\begin{align}
+	\frac{{{x^H}Ax}}{{{x^H}x}} & = \frac{{{x^H}U\Lambda {U^H}x}}{{{x^H}x}} = \frac{{{z^H}Az}}{{{z^H}z}}\\
+							   & = \frac{{{\lambda _1}z_1^2 + {\lambda _2}z_2^2 + ... + {\lambda _n}z_n^2}}{{z_1^2 + z_2^2 + ... + z_n^2}}
+							   \le \frac{{{\lambda _n}(z_1^2 + z_2^2 + ... + z_n^2)}}{{z_1^2 + z_2^2 + ... + z_n^2}} = {\lambda _n}
+\end{align}
+那么我们可知，Rayleigh商的上界为最大的特征值，同理我们可知其下界为最小的特征值。当$x = u_1$时，我们可知$z = U^{T} u_1 = (1, 0, ..., 0)^{T}$，所以可以取到最小值$\lambda _1$，当$x = u_n$时，可以取得最大值$\Lambda_n$，对应于$x$的取值为特征值对应的特征向量。
+
+倘若我们想要借助这个定理，来计算其余的特征值${\lambda _2} \le {\lambda _3} \le ... \le {\lambda _{n-1}}$，应该怎么计算？我们可以考虑与特征向量$u_{1}$正交的子空间中的任意向量$x$，有$x \bot {u_1}$，则$z = U^{T} x = (0, z_{2}, ..., z_{n})^{T}$，我们检查向量$z$对应的Rayleigh商：
+\begin{align}
+	\frac{{{z^H}Az}}{{{z^H}z}} & = \frac{{{\lambda _2}z_2^2 + ... + {\lambda _n}z_n^2}}{{z_2^2 + ... + z_n^2}}\\
+							   & { \ge \frac{{{\lambda _2}(z_2^2 + ... + z_n^2)}}{{z_2^2 + ... + z_n^2}} = {\lambda _2}}
+\end{align}
+
+也就是说：
+\begin{equation}
+\mathop {\max }\limits_{x \ne 0,x \bot {u_1}} \frac{{{x^H}Ax}}{{{x^H}x}} = {\lambda _2}
+\end{equation}
+可以得到，当$x = u_2$时，恰好可以取到矩阵的第二小特征值$\lambda_{2}$。
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{谱聚类算法}
+对于无向图$G$，谱聚类的目标是将图$G(V,E)$割成$k$个互相没有边连接的子图，每个子图为：$A_1,...,A_k$，它们满足${A_i} \cap {A_j} = \emptyset$，而${A_1} \cup {A_2},...,{A_k} = V$。
+那么对于$k$个互不连接的子图$A_1,...,A_k$，我们定义\emph{割图(cut)}为：
+\begin{equation}
+cut({A_1},{A_2},...,{A_k}) = \frac{1}{2}\sum\limits_{i = 1}^k {W({A_i},{{\bar A}_i})}
+\label{objectFcn}
+\end{equation}
+
+其中，${{{\bar A}_i}}$为$A_i$的补集。回忆一下，前面章节提到的聚类的目的是为了类间相似性最小，类内相似性最大，那么这里很自然的可以类比于图论里的概念，聚类等价于最小化$cut({A_1},{A_2},...,{A_k})$，割图可以被理解为机器学习中想要最小化的损失函数。但是实际上这么做还是有问题的，如图\ref{Fig:1}中的b图所示，这种极小化$cut({A_1},{A_2},...,{A_k})$切图的方式容易将单条边从图中切出去，也就是模型容易产生过拟合现象。下面给出两种避免切图效果不佳而改进的切图方式：\emph{比例切图(RatioCut)}与\emph{正则化切图(NormalizedCut)}。
+
+\subsection{RatioCut切图}
+RatioCut切图为了避免上文提到的最小化割图容易过拟合的问题，对于每个割图，不仅考虑切最小化原始的式\ref{objectFcn}，而且还考虑每个子图所包含的顶点的数目$A_{i}$：
+\begin{equation}
+RatioCut = \frac{1}{2}\sum\limits_{i = 1}^k {\frac{{W({A_i},{{\bar A}_i})}}{{|{A_i}|}}}
+\end{equation}
+其中$|{A_i}|$代表的是集合$A_{i}$中的顶点的个数，是一种衡量集合大小的手段。在讨论解$k$个子图的问题之前，我们先来看看对于$k=2$的时候，我们该怎么来解这个问题。当$k=2$时候，需要求解：
+\begin{align}
+	\min_{A \subset V} \quad RatioCut(A,\bar A)
+\end{align}
+对于这样一个问题，首先可以定义这样的指示向量$f = {({f_1},{f_2},...,{f_n})^T}$：
+\begin{equation}
+{f_{i}} = \\
+\begin{cases}
+	\sqrt {|\bar A|/|A|}, & \text{if } {v_j} \in A; \\
+	- \sqrt {|A|/|\bar A|} , & \text{if } {v_j} \in \bar A
+\end{cases}
+\label{ratioCutIndictorFcn}
+\end{equation}
+
+接下来，利用新定义的指示向量和拉普拉斯矩阵计算：
+\begin{align}
+	{f^T}Lf & = \frac{1}{2}\sum\limits_{i,j = 1}^n {{w_{ij}}{{({f_i} - {f_j})}^2}} \\
+	 & = \frac{1}{2}\sum\limits_{i \in A,j \in \bar A} {{w_{ij}}{{(\sqrt {\frac{{|\bar A|}}{{|A|}}}  + \sqrt {\frac{{|A|}}{{|\bar A|}}} )}^2}}  + \frac{1}{2}\sum\limits_{i \in A,j \in \bar A} {{w_{ij}}{{( - \sqrt {\frac{{|\bar A|}}{{|A|}}}  - \sqrt {\frac{{|A|}}{{|\bar A|}}} )}^2}} \\
+	 & = cut(A,\bar A)(\frac{{|\bar A|}}{{|A|}} + \frac{{|A|}}{{|\bar A|}} + 2) = |V|RatioCut(A,\bar A)
+\end{align}
+可以看出，$RatioCut$问题在给定指示向量的条件下与${f^{T}Lf}$是等价的。另外，我们注意到指示向量还有如下的约束关系：
+\begin{equation}
+\sum\limits_{i = 1}^n {{f_i} = \sum\limits_{i \in A} {\sqrt {\frac{{|\bar A|}}{{|A|}}} } }  - \sum\limits_{i \in \bar A} {\sqrt {\frac{{|A|}}{{|\bar A|}}} }  = |A|\sqrt {\frac{{|\bar A|}}{{|A|}}}  - |\bar A|\sqrt {\frac{{|A|}}{{|\bar A|}}}  = 0
+\end{equation}
+也就是说指示向量垂直于全$1$向量，最后，我们应当也注意到向量$f$满足于：
+\begin{equation}
+||f|{|^2} = \sum\limits_{i = 1}^n {f_i^2 = n}
+\end{equation}
+这样，我们最终想要解决的问题简化为了：
+\begin{align}
+	\min_{A \subset V} & \quad f^{T}Lf \\
+	s.t. & \quad f_{i} \bot 1, \quad where \, f_{i} = eq.\ref{ratioCutIndictorFcn} \\ 
+	& \quad \Vert f \Vert = \sqrt{n}
+\end{align}
+但是我们应当注意到，这里的$f_{i}$的取值是离散的，并且只允许取两个离散的值$f_{i} \in \{0, 1\}$，这使得这个优化问题需要指数时间来进行求解。可以放松$f_{i}$的取值范围到任意的实数值，也就是解一个近似的约束优化问题：
+\begin{align}
+\min_{A \subset V} & \quad f^{T}Lf \\
+s.t. & \quad f_{i} \bot 1, \quad where \, f_{i} \in R \\
+& \quad \Vert f \Vert = \sqrt{n}
+\end{align}
+
+通过性质4的瑞利商和瑞利定理的结论可知问题的解对应于拉普拉斯矩阵的第二个最小特征值对应的特征向量。但是，还有一步就是说要确定样本点的归属于哪一个类的问题，那么我们可以使用这样一种简单的指示函数来进行确定：
+\begin{equation}
+\begin{cases}
+{{v_i} \in A,} & \text{if } {v_i} \ge 0; \\
+{{v_i} \in \bar A,} & \text{if } {v_i} < 0
+\end{cases}
+\end{equation}
+
+这种做法当面临$k>2$的情况下，也就是分两类以上的时候，以上方法不再适用。比较标准的做法是，将指示向量$f$的每一行看做是空间中间点的坐标，对于这样的坐标可以用$K-means$算法再聚一次类，这样就得到了最终的聚类结果。
+
+对于$k>2$的情况之下，我们考虑$f_i^TL{f_i}$，其中$f_{i}$代表子图$A_i$对应的指示向量，$f_{ij}$代表指示向量$i$的第$j$个元素，我们定义新的指示向量：
+\begin{equation}
+{f_{ij}} = \begin{cases}
+0, & \text{if } {v_j} \notin A_i; \\
+\frac{1}{{\sqrt {|{A_i}|} }}, & \text{if } {v_j} \in A_i
+\end{cases}
+\label{ratioCutKIndictorFcn}
+\end{equation}
+
+对应于新的指示向量，我们可以证明：
+\begin{align}
+	f_i^TL{f_i} & = \frac{1}{2}\sum\limits_{s,t = 1}^n {{w_{st}}{{({f_{is}} - {f_{it}})}^2}} \\
+	& = \frac{1}{2}(\sum\limits_{s \in {A_i},t \in {{\bar A}_i}} {{w_{st}}{{(\frac{1}{{\sqrt {|{A_i}|} }} - 0)}^2}}  + \sum\limits_{s \in {{\bar A}_i},t \in {A_i}} {{w_{st}}{{(0 - \frac{1}{{\sqrt {|{A_i}|} }})}^2}} )\\
+	& = \frac{1}{2}(cut({A_i},{{\bar A}_i})\frac{1}{{|{A_i}|}} + cut({{\bar A}_i},{A_i})\frac{1}{{|{A_i}|}}) = \frac{1}{|A_{i}|} RatioCut({A_i},{{\bar A}_i})
+\end{align}
+
+
+上面的式子，是对于某一个子图$i$而言的情况。那么对于全部的$k$个子图呢？对应的RatioCut的优化目标变为了：
+\begin{equation}
+RatioCut({A_i},{\bar A_i}) = \sum\limits_{i = 1}^k {f_i^TL{f_i}}  = Tr({F^T}LF)
+\end{equation}
+
+其中$Tr({F^T}LF)$代表矩阵的迹。同时我们注意到，对于只是向量而言有${F^T}F = I$，那么我们之前提到的RationCut聚类的问题其实就可以转化为这样一个优化问题：
+\begin{align}
+	\min_{F \in R^{m \times k}} & \quad Tr({F^T}LF) \\
+	s.t. & \quad {F^T}F = I, \quad where \, F = eq. \ref{ratioCutKIndictorFcn}
+\end{align}
+其中$m$代表样本的个数，$k$代表聚类的个数。解这个问题我们仍然和原始问题采用一样的思想，将指示向量取值的范围放松到实数范围里面去，并且同样借助瑞利商和瑞利定理的概念，我们可知这个问题的解就是将特征值由小到大排布的前$k$个特征值对应的特征向量。并且和$k=2$的情况时一样，使用$K-means$算法对指示向量组成的矩阵进行聚类，便可以得到结果。
+
+\subsection{NormalizedCut切图}
+NormalizedCut切图的方法和RatioCut的方法上很类似，只是将子图大小的度量从$|{A_i}|$，也就是子图内点的个数，换成$vol(A_{i})$，也就是子图中边的权重的和，这样的做法，更加符合我们聚类的目标，所以一般认为NormalizedCut切图方法的效果优于Ratio切图的方法的效果。这里我们同样分$k=2$和$k>2$情况来进行讨论。对于$k=2$的情况时，我们给定我们的指示向量为：
+
+\begin{equation}
+{f_{i}} = \begin{cases}
+\sqrt {\frac{{vol(\bar A)}}{{vol(A)}}} & \text{if } {v_i} \in A; \\
+- \sqrt {\frac{{vol(A)}}{{vol(\bar A)}}} & \text{if } {v_i} \notin A
+\end{cases}
+\end{equation}
+
+同样的，我们这里对于度矩阵$D$可以检查，${DF}^{T}$左乘向量${[1,...,1]^T}$为0，并且$f^{T}Df=vol(V)$
+
+\emph{Step 1：}构建邻接矩阵$W \in {R^{n*n}}$
+
+\emph{Step 2：}计算拉普拉斯矩阵，并且计算拉普拉斯矩阵的前$k$个特征向量${u_1},...,{u_k}$
+
+\emph{Step 3：}使得特征向量${u_1},...,{u_k}$组成矩阵$U \in R^{n*k}$
+
+\emph{Step 4：}对矩阵$U$的行运用$k-means$聚类算法进行聚类，得到类标记。
+
+\section{总结}
+\end{document}

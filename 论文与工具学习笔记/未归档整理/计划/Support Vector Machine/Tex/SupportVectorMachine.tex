@@ -1,0 +1,43 @@
+% 设置编码，编码为UTF-8编码，字号大小12pt
+\documentclass[UTF8, 12pt]{ctexart}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{titlesec}{\tiny}
+\usepackage{amsmath}
+% 定义
+\newtheorem{theorem}{Theorem}[section]
+% 控制图片的位置，让图片紧紧的跟住文字，只需写\begin{figure}[H]
+\usepackage{float}
+% 使用文献引用
+\usepackage{cite}
+
+% 设置文本格式，文本间距等，具体参考如下：
+% left=2cm, right=2cm, top=2.5cm,bottom=1.5cm
+\geometry{a4paper, centering, scale=0.81}
+\newtheorem{thm}{定义}
+
+
+\begin{document}
+\title{\heiti 支持向量机（一）}
+\author{\kaishu 尹卓\\北京工业大学\\michaelyin777@outlook.com}
+\date{\today}
+\maketitle
+
+% 增加目录
+\tableofcontents
+\newpage
+
+\section{硬间隔支持向量机}
+如图所示，对于平面上的两堆线性可分的（线性可分的意思是可以找到一个分类器将数据完全分开，分类正确率100\%）数据，我们如何找到一根最优的直线，将两堆数据分开？对应于高维空间的问题，我们如何在高维空间里的线性可分的数据之间找到一个最优的超平面，对样本进行分类？一般来说，当数据线性可分时，存在无数个分类器可以将数据完全正确的分开。但是我们的想法是这样的：我们希望找到一根直线，使得这根直线离我们图1中的两堆数据都要尽可能的远。这样的好处在于，我们再搜集新的数据的时候，也许新搜集的数据噪声比较大，也就是说搜集的蓝色的点的数据离棕色的那堆近，那么我们的分类器因为尽量的离这两堆数据远，那么新来的样本出错的可能性也许不会那么大，基于这个思想，我们展开讲支持向量机的数学模型。
+
+对应于分类器，我们给出分类器超平面的表达式和判别表达式：
+\begin{equation}
+	w \cdot x + b = 0
+\end{equation}
+
+\subsection{最优分类器}
+\subsection{间隔最大化问题}
+\subsection{拉格朗日对偶性}
+
+
+\end{document}

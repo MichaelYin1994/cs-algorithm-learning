@@ -1,0 +1,161 @@
+% 设置编码，编码为UTF-8编码，字号大小12pt
+\documentclass[UTF8, 12pt]{ctexart}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{titlesec}{\tiny}
+\usepackage{amsmath}
+\usepackage{authblk}
+\usepackage{amsfonts}
+% 定义超链接的颜色
+\usepackage[colorlinks, linkcolor=blue, citecolor=blue]{hyperref}
+
+% 标题左对齐
+%\CTEXsetup[format={\Large\bfseries}]{section}
+
+% 定义
+\newtheorem{theorem}{Theorem}[section]
+% 控制图片的位置，让图片紧紧的跟住文字，只需写\begin{figure}[H]
+\usepackage{float}
+% 使用文献引用
+\usepackage{cite}
+% 使用算法排版模块
+\usepackage{algorithm}  
+\usepackage{algorithmic}
+\renewcommand{\algorithmicrequire}{\textbf{输入:}}  
+\renewcommand{\algorithmicensure}{\textbf{输出:}} 
+% 设置文本格式，文本间距等，具体参考如下：
+% left=2cm, right=2cm, top=2.5cm,bottom=1.5cm
+\geometry{a4paper, centering, scale=0.8}
+\newtheorem{thm}{定义}
+\renewcommand{\baselinestretch}{1.3}
+
+% 定义编程语言
+\usepackage{listings}
+\usepackage{color}
+\usepackage{fontspec}
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+\definecolor{light-gray}{gray}{0.95}
+
+\lstset{frame=tb,
+	language=Python,
+	aboveskip=3mm,
+	belowskip=1mm,
+	showstringspaces=false,
+	columns=flexible,
+	basicstyle=\small\ttfamily,
+	numbers=left,
+	numberstyle=\small\color{gray},
+	keywordstyle=\color{blue},
+	commentstyle=\color{dkgreen},
+	stringstyle=\color{mauve},
+	breaklines=true,
+	breakatwhitespace=true,
+	tabsize=4,
+	backgroundcolor=\color{light-gray}
+}
+
+\begin{document}
+\title{\heiti \Huge{PCA与Kernel PCA原理简介}}
+\author{\kaishu 尹卓 \\ \href{mailto:zhuoyin94@163.com}{zhuoyin94@163.com}}
+\date{\today}
+\maketitle
+
+% 增加目录
+\tableofcontents
+\newpage
+
+\section{引言}
+
+\section{PCA基本原理}
+	\emph{主成分分析(Principal Component Analysis)}的目的，是为了解决这样一个问题：对于$\textbf{x}_{i} \in \mathbb{R}^{n}$的样本而言，希望找到$\textbf{x}_{i}$的近似$\hat{\textbf{x}}_{i}$，使得\emph{重构误差(Reconstruction Error)}最小化。也就是：
+	\begin{align}
+		\label{lossFcn}
+		\min_{\textbf{W}, \textbf{Z}} & \quad J(\textbf{W}, \textbf{Z}) = \frac{1}{m} \sum_{i=1}^{m} {\Vert \textbf{x}_{i} - \hat{\textbf{x}}_{i} \Vert}^{2}
+	\end{align}
+	式(\ref{lossFcn})中，$\textbf{W} \in \mathbb{R}^{n \times l}$是变换矩阵，其列向量是一组正交基底：${\textbf{w}_{i}}^{T}\textbf{w}_{j}=0(i \neq j)$，且${\textbf{w}_{i}}^{T}\textbf{w}_{i}=1$，$\textbf{x}_{i}$的近似$\hat{\textbf{x}}_{i}$由$\hat{\textbf{x}}_{i} = \textbf{W}\textbf{z}_{i}$变换得到，其中$\textbf{z}_{i} \in \mathbb{R}^{l}$是$\textbf{x}_{i}$的低维近似。寻找重构误差最小的过程，等价于找到一系列的数据的正交的主方向，数据在这些主方向上具有较大的方差。
+	
+	设$\textbf{w}_{j} \in \mathbb{R}^{n}$代表第$j$个主方向，$\textbf{x}_{i} \in \mathbb{R}^{n}$代表第$i$组数据，$\hat{\textbf{z}}_{j} \in \mathbb{R}^{m}$为$[z_{1j}, ..., z_{mj}]^{T}$，代表了样本的第$j$个主成分。首先讨论压缩到$1-d$形式下的最优解，对于方向$\textbf{w}_{1} \in \mathbb{R}^{n}$而言，而对应的投影向量$\hat{\textbf{z}}_{1}$。重构误差可以写作：
+	\begin{align}
+		\label{lossSingleDir}
+		J(\textbf{w}_{1}, \textbf{z}_{1}) & = \frac{1}{m} \sum_{i=1}^{m} {\Vert \textbf{x}_{i} - z_{i1}\textbf{w}_1 \Vert}^{2} \\
+					   					  & = \frac{1}{m} \sum_{i=1}^{m} {(\textbf{x}_{i} - z_{i1}\textbf{w}_1)}^{T}(\textbf{x}_{i} - z_{i1}\textbf{w}_1) \\
+					   					  & = \frac{1}{m} \sum_{i=1}^{m} [\textbf{x}_{i}^{T}\textbf{x}_{i} - 2 z_{i1}\textbf{w}_{1}^{T}\textbf{x}_{i} + z_{i1}^{2}\textbf{w}_{1}^{T}\textbf{w}_{1}] \\
+					   					  & = \frac{1}{m} \sum_{i=1}^{m} [\textbf{x}_{i}^{T}\textbf{x}_{i} - 2 z_{i1}\textbf{w}_{1}^{T}\textbf{x}_{i} + z_{i1}^{2}]
+	\end{align}
+	其中式(\ref{lossSingleDir})的约束条件为$\textbf{w}_{1}^{T}\textbf{w}_{1}=1$。对$z_{i1}$进行求导，可以得到：
+	\begin{align}
+		\frac{\partial}{\partial z_{i1}}J(\textbf{w}_1, \textbf{z}_1) & = \frac{1}{m} [-2\textbf{w}_{1}^{T}\textbf{x}_{i} + 2z_{i1}] = 0 \\
+													& \to z_{i1} = \textbf{w}^{T}_{1}\textbf{x}_{i}
+	\end{align}
+	代入$z_{i1} = \textbf{w}^{T}_{1}\textbf{x}_{i}$，便有：
+	\begin{equation}
+		J(\textbf{w}_{1}) = \frac{1}{m} \sum_{i=1}^{m} [\textbf{x}_{i}^{T}\textbf{x}_{i} - z_{i1}^{2}] = const - \frac{1}{m}\sum_{i=1}^{m} z_{i1}^{2}
+	\end{equation}
+
+投影之后的$\hat{z}_{1}$的期望为：
+\begin{align}
+	& E[z_{i1}] = E[x_{i}^{T}w_{1}] = E[x_{i}]^{T}w_{1} = 0 \to \\
+	& Var[\hat{z}_{1}] = E[\hat{z}_{1}^{2}] - (E[\hat{z}_{1}])^2 = \frac{1}{m} \sum_{i=1}^{m} z_{i1}^{2} - 0
+\end{align}
+因为数据已经归一化，所以$E[x_{i}]^{T} = 0$。所以优化问题可以变为：
+\begin{equation}
+	arg \min_{w_{1}} J(w_{1}) = arg \max_{w_{1}} Var[\hat{z}_{1}]
+\end{equation}
+由于$z_{i1} = w^{T}_{1}x_{i}$等价于将$x_{i}$投影到$w_{1}$方向上去，所以这就是为什么常说PCA寻找的是方差最大的方向。投影之后数据的方差可以被写为：
+\begin{equation}
+	\frac{1}{m} \sum_{i=1}^{m} z_{i1}^{2} = \frac{1}{m} \sum_{i=1}^{m} w_{1}^{T}x_{i}x_{i}^{T}w_{1}^{T} = w_{1}^{T}\Sigma w_{1}
+\end{equation}
+而$\Sigma = \frac{1}{m} \sum_{i=1}^{m} x_{i}x_{i}^{T}$被称为\emph{协方差矩阵(Covariance Matrix)}。所以现在要解的优化问题可以写为：
+\begin{align}
+	arg \max_{w_{1}} & \quad w_{1}^{T}\Sigma w_{1} \\
+	s.t. & \quad w_{1}^{T}w_{1} = 1
+\end{align}
+利用拉格朗日乘子法，构建拉格朗日函数:
+\begin{equation}
+	\hat{J}(w_{1}) = w_{1}^{T}\Sigma w_{1} + \lambda_{1}(w_{1}^{T}w_{1} - 1)
+\end{equation}
+其中$\lambda_{1}$是拉格朗日乘子。对拉格朗日函数求导可得：
+\begin{align}
+	& \frac{\partial}{\partial w_{1}} \hat{J}(w_1) = 2\Sigma w_{1} - 2\lambda_{1}w_{1} = 0 \\ 
+	& \Sigma w_{1} = \lambda_{1}w_{1}
+\end{align}
+因此，所需要寻找的投影方向$w_{1}$为协方差矩阵的特征向量。并且左乘$w^{T}$之后，可得：
+\begin{equation}
+	w_{1}^{T}\Sigma w_{1} = \lambda_{1}
+\end{equation}
+因为想要最大化投影方向的方差，所以我们选择对应于最大的矩阵的特征值的特征向量作为投影方向。
+
+我们现在讨论$2-d$形式的PCA，也就是在$w_1$的基础上希望找到第二个主方向$w_{2}$，那么求解的优化问题变为了：
+\begin{align}
+	\min_{w_{1}, w_{2}, z_{1}, z_{2}} & \quad J(w_1, z_{1}, w_{2}, z_{2}) = \frac{1}{m} \sum_{i=1}^{m} {\Vert x_{i} - z_{i1}w_{1} - z_{i2}w_{2} \Vert}^{2} \\
+						  s.t. & \quad w_{1}^{T}w_{2} = 0, w_{1}^{T}w_{1}=w_{2}^{T}w_{2}=1
+\end{align}
+解以上的问题，对于$w_{1}$与$z_{1}$的解还是和之前一样。对$z_{i2}$求导，则$z_{i2}=w_{2}^{T}x_{i}$。代入优化问题，可得：
+\begin{equation}
+	J(w_{2}) = \frac{1}{m} \sum_{i=1}^{m} [x_{i}^{T}x_{i} - w_{1}^{T}x_{i}x_{i}^{T}w_{1} - w_{2}^{T}x_{i}x_{i}^{T}w_{2}] = const - w_{2}^{T}\Sigma w_{2}
+\end{equation}
+同样按照前面的方式，构造拉格朗日函数：
+\begin{equation}
+	\hat{J}(w_{2}) = - w_{2}^{T}\Sigma w_{2} + \lambda_{2}(w_{2}^{T}w_{2}-1) + \lambda_{3}(w_{2}^{T}w_{1}-0)
+\end{equation}
+同样的方式，可以得到$w_{2}$的最优解：
+\begin{equation}
+	\Sigma w_{2} = \lambda_{2}w_{2}
+\end{equation}
+同理可以套用到其他的主方向去。
+
+\section{Kernel PCA}
+主成分分析对协方差矩阵$S=\frac{1}{N}X^{T}X$进行矩阵分解得到数据的各个主方向。但是存在使用$XX^{T}$来计算数据的主方向的方法，这种方法等价于将数据映射到高维空间，再进行主成分分析获取高维空间中的主成分，这种方法被称为\emph{核主成分分析(Kernel PCA)}。
+
+核主成分分析的推导始于$XX^{T}$的特征向量。设$U$为$XX^{T}$的特征向量的矩阵，$U$为正交矩阵，$\Lambda$为对应的特征值矩阵，特征值矩阵只有主对角线上有值。由定义我们可知：$(XX^{T})U=U\Lambda$，对于这个式子两边同时乘以$X^{T}$，我们可得：
+\begin{equation}
+	(X^{T}X) (X^{T}U) = X^{T}U\Lambda
+\end{equation}
+由上式可知，$X^{T}X$的特征向量组成的矩阵是$V=X^{T}U$，而特征值矩阵是$\Lambda$。但是这些特征向量并没有被归一化。
+
+\bibliographystyle{plain}  
+\bibliography{PCA_ref}  
+
+\end{document}

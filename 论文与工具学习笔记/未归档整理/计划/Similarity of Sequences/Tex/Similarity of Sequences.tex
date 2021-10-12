@@ -1,0 +1,69 @@
+% 设置编码，编码为UTF-8编码，字号大小12pt
+\documentclass[UTF8, 12pt]{ctexart}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{titlesec}{\tiny}
+\usepackage{amsmath}
+\usepackage[colorlinks, linkcolor=blue, citecolor=blue]{hyperref}
+% 定义
+\newtheorem{theorem}{Theorem}[section]
+% 控制图片的位置，让图片紧紧的跟住文字，只需写\begin{figure}[H]
+\usepackage{float}
+% 使用文献引用
+\usepackage{cite}
+% 使用算法排版模块
+\usepackage{algorithm}  
+\usepackage{algorithmic} 
+
+% 设置文本格式，文本间距等，具体参考如下：
+% left=2cm, right=2cm, top=2.5cm,bottom=1.5cm
+\geometry{a4paper, centering, scale=0.81}
+\newtheorem{thm}{定义}
+
+
+\begin{document}
+\title{\heiti 序列相似性度量简介}
+\author{\kaishu 尹卓\\北京工业大学\\MichaelYinBJUT@163.com}
+
+\maketitle
+
+% 增加目录
+\tableofcontents
+\newpage
+\section{引言}
+\section{轨迹数据示例}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.6\linewidth]{..//Plots//TrajectoryExample.pdf}
+	\caption{The original trajectory format}
+	\label{trajectoryExample}
+	\vspace{-0.5em}
+\end{figure}
+本文中，使用从西安的交叉口高点监控视频提取的轨迹，演示各个轨迹距离度量的实验效果。其中，轨迹数据的示意图如\ref{trajectoryExample}所示；轨迹数据的格式被定义为：
+\begin{thm}[车辆轨迹格式]
+	\label{trajectoryFormat}
+	一条车辆轨迹数据被表示为按时间先后排序的序列$Traj = \{p_{1}, ..., p_{N}\}$，其中$p_{i} = \{t_{i}, x_{i}, y_{i}, s_{i}, c_{i}\}$。轨迹数据中的$x$与$y$坐标代表车辆在$t_{i}$时刻的位置。$t_{i}$代表标准的$Linux$时间；$s_{i} \in R$代表$t_{i}$时刻车辆的跟踪框的大小；$c_{i} \in \{0, 1\}$代表$t_{i}$时刻，车辆是否位于交叉口内部。对于时间信息而言，$t_{1} < t_{2} < ... < t_{N}$。
+\end{thm}
+
+\section{相似性度量}
+轨迹数据聚类不同于传统数据的聚类。轨迹数据通常是多维度的，不等长的，时空相关联的数据，这使得传统的聚类算法难以应用于轨迹数据。
+\subsection{Euclidean距离}
+Euclidean距离通常针对的是等长的轨迹。对于两条不同的轨迹$Traj_{i}$与$Traj_{j}$而言，轨迹的样本点的个数都为$N$个，维数为$P$维。Euclidean距离的计算公式为：
+\begin{equation}
+	D_{E}(Traj_{i}, Traj_{j}) = \frac{1}{N} \sum_{k=1}^{N} \sqrt{\sum_{m=1}^{P} (a_{k}^{m} - b_{k}^{m})^{2}}
+\end{equation}
+
+其中$a_{k}^{m}$代表轨迹$Traj_{i}$的第$k$个点的第$m$个特征的取值。Euclidean距离的时间复杂度为$O(n)$，但是只能用于等长度的轨迹数据，这使得距离度量的应用有一定的困难。
+
+\subsection{DTW距离}
+
+
+\subsection{LCSS距离}
+\subsection{Edit距离}
+\subsection{Hausdorff距离}
+\subsection{Frechet距离}
+\section{总结}
+
+\section{实验}
+\end{document}

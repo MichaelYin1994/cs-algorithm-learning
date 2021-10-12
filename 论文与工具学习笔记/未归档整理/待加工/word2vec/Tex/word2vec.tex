@@ -1,0 +1,174 @@
+% 设置编码，编码为UTF-8编码，字号大小12pt
+\documentclass[UTF8, 12pt]{ctexart}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{titlesec}{\tiny}
+\usepackage{amsmath}
+\usepackage{authblk}
+\usepackage{amsfonts}
+% 定义超链接的颜色
+\usepackage[colorlinks, linkcolor=blue, citecolor=blue]{hyperref}
+
+% 标题左对齐
+%\CTEXsetup[format={\Large\bfseries}]{section}
+
+% 定义
+\newtheorem{theorem}{Theorem}[section]
+% 控制图片的位置，让图片紧紧的跟住文字，只需写\begin{figure}[H]
+\usepackage{float}
+% 使用文献引用
+\usepackage{cite}
+% 使用算法排版模块
+\usepackage{algorithm}  
+\usepackage{algorithmic}
+\renewcommand{\algorithmicrequire}{\textbf{输入:}}  
+\renewcommand{\algorithmicensure}{\textbf{输出:}} 
+% 设置文本格式，文本间距等，具体参考如下：
+% left=2cm, right=2cm, top=2.5cm,bottom=1.5cm
+\geometry{a4paper, centering, scale=0.8}
+\newtheorem{thm}{定义}
+\renewcommand{\baselinestretch}{1.3}
+
+% 定义编程语言
+\usepackage{listings}
+\usepackage{color}
+\usepackage{fontspec}
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+\definecolor{light-gray}{gray}{0.95}
+
+\lstset{frame=tb,
+		language=Python,
+		aboveskip=3mm,
+		belowskip=1mm,
+		showstringspaces=false,
+		columns=flexible,
+		basicstyle=\small\ttfamily,
+		numbers=left,
+		numberstyle=\small\color{gray},
+		keywordstyle=\color{blue},
+		commentstyle=\color{dkgreen},
+		stringstyle=\color{mauve},
+		breaklines=true,
+		breakatwhitespace=true,
+		tabsize=4,
+		backgroundcolor=\color{light-gray}
+}
+
+\begin{document}
+	
+\title{\heiti \Huge{word2vec简介}}
+\author{\kaishu 尹卓 \\ \href{mailto:zhuoyin94@163.com}{zhuoyin94@163.com}}
+\date{\today}
+\maketitle
+
+% 增加目录
+\tableofcontents
+\newpage
+\section{引言}
+	这里是引言。
+	
+\section{连续词袋模型(CBoW)}
+	
+	\subsection{单词的连续词袋模型}
+	单词的连续词袋模型只考虑一个词，也就意味着给定一个\emph{中心词(Context word)}，只预测一个\emph{目标词(Target word)}。假设我们的词表的大小为$V$，隐层神经元的个数为$N$，该神经网络为一个\emph{全连接(Fully Connected)}的神经网络。神经网络的输入是经过独热码的词向量，意即对于输入$\textbf{x} = \{x_{i}\}_{i=1}^{V}$而言，只有中心词位置为1，其他都是0；对于需要预测的输出$\textbf{y}$而言，只有目标词位置为1，其他都是0。
+	
+	输入层到隐藏层的权重定义为$\textbf{W} \in \mathbb{R}^{V \times N}$。$\textbf{W}$矩阵的每一行被定义为$\textbf{v}_{w}^{T}$，对于输入层到隐层的运算而言，假设对于向量$\textbf{x}$而言，$x_{k}=1$，其他位置都为0，便有：
+	\begin{equation}
+		\label{hiddenUnitVec}
+		\textbf{h} = \textbf{W}^{T}\textbf{x}=\textbf{v}_{w_{I}}
+	\end{equation}
+	这样意味着，隐层向量$\textbf{h} \in \mathbb{R}^{N \times 1}$是$\textbf{W}$矩阵的第$k$行的一份拷贝。
+	
+	对于隐层到输出层的而言，设其权重为$\textbf{W}^{'} \in \mathbb{R}^{N \times V}$。对于输出层的第$j$个输出而言，其表达式为：
+	\begin{equation}
+		\label{outputUnit_j}
+		u_{j} = {\textbf{v}^{'}_{w_{j}}}^{T} \textbf{h}
+	\end{equation}
+	其中，$\textbf{v}^{'}_{w_{j}}$为矩阵$\textbf{W}^{'}$的第$j$列。在有了以上的表达式之后，我们使用softmax模型，获得输出词的后验概率：
+	\begin{equation}
+		\label{posteriorDist}
+		p(w_{j}|w_{I}) = y_{j} = \frac{\exp(u_{j})}{\sum_{j^{'} = 1}^{V} \exp(u_{j^{'}})}
+	\end{equation}
+	其中$y_{j}$是神经网络的第$j$个输出。在获得了式(\ref{hiddenUnitVec})与(\ref{outputUnit_j})的表达式之后，可以将二式代入到(\ref{posteriorDist})中去。便可以得到：
+	\begin{equation}
+		p(w_{j}|w_{I}) = y_{j} = \frac{\exp({\textbf{v}^{'}_{w_{j}}}^{T} \textbf{v}_{w_{I}})}{\sum_{j^{'} = 1}^{V} \exp({\textbf{v}^{'}_{w_{j^{'}}}}^{T} \textbf{v}_{w_{I}})}
+	\end{equation}
+	在这里应当注意到，向量$\textbf{v}_{w}$与向量$\textbf{v}^{'}_{w}$是词的两种不同的表达形式。向量$\textbf{v}_{w}$是矩阵$\textbf{W}^{T}$的一列，向量$\textbf{v}^{'}_{w}$是矩阵$\textbf{W}^{'}$的一列。我们一般将$\textbf{v}_{w}$称为\emph{输入向量(Input vector)}，向量$\textbf{v}^{'}_{w}$称为\emph{输出向量(Output vector)}。
+	
+	我们此处考虑交叉熵损失函数：
+	\begin{equation}
+		\label{crossEntropyLoss}
+		L(\textbf{y}, \hat{\textbf{y}}) = -\sum_{j^{'} = 1}^{V} y_{j^{'}}\log(\hat{y}_{j^{'}})
+	\end{equation}
+	式(\ref{crossEntropyLoss})中的$y_{j^{'}}$是第$j^{'}$个神经元的真实输出，而$\hat{y}_{j^{'}}$是神经网络的网络输出。由于目标词只有一个，所以该损失函数可以被进一步简化为最小化式(\ref{posteriorDist})的后验概率，意即：
+	\begin{align}
+		\min - {p(w_{j}|w_{I})} & = \min - y_{j^{*}} \\
+							    & = \min - \log y_{j^{*}} \\
+							    & = \log \sum_{j^{'} = 1}^{V} \exp(u_{j^{'}}) - u_{j^{*}} \\
+							    & = E
+	\end{align}
+	其中$j^{*}$代表实际有输出值的神经元。
+	
+	接下来，考虑由输出层$\Rightarrow$隐藏层的反向传播过程。损失$E$对于第$j$个神经元的偏导数可以写为：
+	\begin{equation}
+		\frac{\partial E}{\partial u_{j}} = y_{j} - t_{j} = e_{j}
+	\end{equation}
+	接下来对$\textbf{W}^{'}$矩阵的元素$w_{ij}^{'}$进行求导，获取权值的更新公式：
+	\begin{equation}
+		\frac{\partial E}{\partial w_{ij}^{'}} = \frac{\partial E}{\partial u_{j}} \cdot \frac{\partial u_{j}}{\partial w_{ij}^{'}} = e_{j} \cdot h_{i}
+	\end{equation}
+	其中：
+	\begin{equation}
+		u_{j} = \sum_{i=1}^{N} w_{ij}^{'} h_{i}
+	\end{equation}
+	因此，$w_{ij}^{'}$的梯度更新公式可以写为：
+	\begin{equation}
+		{w_{ij}^{'}}^{(new)} = {w_{ij}^{'}}^{(old)} - \eta \cdot e_{j} \cdot h_{i}
+	\end{equation}
+	或者是向量形式：
+	\begin{equation}
+		{\textbf{v}_{w_{j}}^{'}}^{(new)} = {\textbf{v}_{w_{j}}^{'}}^{(old)} - \eta \cdot e_{j} \cdot \textbf{h}
+	\end{equation}
+	其中$j=1,2,...,V$，$\eta$代表学习率。
+	
+	接下来，考虑由隐藏层$\Rightarrow$输入层的反向传播过程。考虑$E$对于隐层单元的偏导数可以写为：
+	\begin{equation}
+		\frac{\partial E}{\partial h_{i}} = \sum_{j=1}^{V} \frac{\partial E}{\partial w_{ij}^{'}} \cdot \frac{\partial u_{j}}{\partial h_{i}} =
+		\sum_{j=1}^{V} e_{j} \cdot w_{ij}^{'} = EH_{i}
+	\end{equation}
+	其中$e_{j} = y_{j} - t_{j}$是第$j$个神经元的预测误差。而$EH_{i}$组成的向量$\textbf{EH} \in \mathbb{R}^{N \times 1}$是一个$N$维的向量。并且我们有：
+	\begin{equation}
+		h_{i} = \sum_{k=1}^{N} x_{k} w_{ki}
+	\end{equation}
+	结合上面二式可以获得$w_{ki}$的更新公式：
+	\begin{equation}
+		\frac{\partial E}{\partial w_{ki}} = \frac{\partial E}{\partial h_{i}} \cdot \frac{\partial h_{i}}{\partial w_{ki}} = EH_{i} \cdot x_{k}
+	\end{equation}
+	这事实上等价于：
+	\begin{equation}
+		\frac{\partial E}{\partial \textbf{W}} = \textbf{x}\textbf{EH}^{T}
+	\end{equation}
+	
+	% word2vec程序实现
+	% https://towardsdatascience.com/an-implementation-guide-to-word2vec-using-numpy-and-google-sheets-13445eebd281
+	
+	\subsection{多词的连续词袋模型}
+	
+\section{跳字模型(Skip-Gram)}
+	
+	\subsection{单词的跳字模型}
+	
+	\subsection{多词的跳字模型}
+
+\section{word2vec的Python实现：简单代码}
+	
+\section{word2vec的Python实现：gensim}
+
+
+\section{总结}
+
+\bibliographystyle{plain}  
+\bibliography{word2vec_ref}  
+\end{document}
